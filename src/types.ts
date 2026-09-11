@@ -21,17 +21,17 @@ export interface ClassInfo {
 export interface WeeklyEvaluation {
   week: number;
   title: string; // e.g. "Tuần 4 (08/09 - 14/09)"
-  academic: 'Xuất sắc' | 'Tốt' | 'Khá tốt' | 'Cần cố gắng';
-  academicScore: number; // 1 - 5 stars
-  discipline: 'Tốt' | 'Khá tốt' | 'Cần nhắc nhở';
-  disciplineScore: number; // 1 - 5 stars
-  attitude: 'Rất tích cực' | 'Tích cực' | 'Chưa tập trung';
-  attitudeScore: number; // 1 - 5 stars
-  cooperation: 'Tốt' | 'Khá tốt' | 'Cần hòa đồng hơn';
-  cooperationScore: number; // 1 - 5 stars
-  attendance: 'Tốt (Đúng giờ)' | 'Nghỉ có phép' | 'Đi muộn';
-  attendanceScore: number; // 1 - 5 stars
-  progressStars: number; // 1 - 5 stars
+  academic: 'Xuất sắc' | 'Tốt' | 'Khá tốt' | 'Cần cố gắng' | 'Chưa đánh giá';
+  academicScore: number; // 0 - 5 stars
+  discipline: 'Tốt' | 'Khá tốt' | 'Cần nhắc nhở' | 'Chưa đánh giá';
+  disciplineScore: number; // 0 - 5 stars
+  attitude: 'Rất tích cực' | 'Tích cực' | 'Chưa tập trung' | 'Chưa đánh giá';
+  attitudeScore: number; // 0 - 5 stars
+  cooperation: 'Tốt' | 'Khá tốt' | 'Cần hòa đồng hơn' | 'Chưa đánh giá';
+  cooperationScore: number; // 0 - 5 stars
+  attendance: 'Tốt (Đúng giờ)' | 'Nghỉ có phép' | 'Đi muộn' | 'Đúng giờ' | 'Chưa đánh giá';
+  attendanceScore: number; // 0 - 5 stars
+  progressStars: number; // 0 - 5 stars
   progressTrend: 'up' | 'steady' | 'needs_attention';
 
   // Specific weekly notes
@@ -78,6 +78,7 @@ export interface LiteratureGradeRecord {
   feedback?: string; // Lời phê chuyên môn Ngữ Văn của Cô Vân Anh
   writingSkill?: string; // Kỹ năng viết đoạn/bài
   readingSkill?: string; // Kỹ năng đọc - hiểu & cảm thụ
+  oralSkill?: string; // Kỹ năng nói - nghe
   customNote?: string; // Ghi chú riêng
   // Compatibility aliases for ParentView:
   averageScore?: number | null;

@@ -84,53 +84,79 @@ export const EvaluationComposerModal: React.FC<EvaluationComposerModalProps> = (
   // Status
   const [isApproved, setIsApproved] = useState(true);
 
+  const handleClearAllFields = () => {
+    setTeacherComment('');
+    setStrengths('');
+    setImprovements('');
+    setParentTip('');
+    setFamilyCoordination('');
+    setSubjectMath('');
+    setSubjectEnglish('');
+    setSubjectScience('');
+    setLitScore('');
+    setLitFeedback('');
+    setAcademicScore(0);
+    setAcademic('Chưa đánh giá' as any);
+    setDisciplineScore(0);
+    setDiscipline('Chưa đánh giá' as any);
+    setAttitudeScore(0);
+    setAttitude('Chưa đánh giá' as any);
+    setCooperationScore(0);
+    setCooperation('Chưa đánh giá' as any);
+    setProgressStars(0);
+    setSelectedAttitudeTags([]);
+    setSelectedStudyTags([]);
+    setSelectedCoopTags([]);
+    setSelectedDisciplineTags([]);
+  };
+
   useEffect(() => {
     if (!student) return;
     const ev = student.weeklyEvaluations[selectedWeek] || {
       week: selectedWeek,
       title: `Tuần ${selectedWeek}`,
-      academic: 'Tốt',
-      academicScore: 4,
-      discipline: 'Tốt',
-      disciplineScore: 5,
-      attitude: 'Tích cực',
-      attitudeScore: 4,
-      cooperation: 'Tốt',
-      cooperationScore: 4,
+      academic: 'Chưa đánh giá',
+      academicScore: 0,
+      discipline: 'Chưa đánh giá',
+      disciplineScore: 0,
+      attitude: 'Chưa đánh giá',
+      attitudeScore: 0,
+      cooperation: 'Chưa đánh giá',
+      cooperationScore: 0,
       attendance: 'Tốt (Đúng giờ)',
       attendanceScore: 5,
-      progressStars: 4,
+      progressStars: 0,
       progressTrend: 'steady',
-      strengths: 'Tích cực tham gia xây dựng bài, chăm chỉ làm bài tập',
-      improvements: 'Cần tự tin hơn khi trình bày ý kiến trước lớp',
-      familyCoordination: 'Gia đình cùng theo sát và nhắc nhở con chuẩn bị bài chu đáo',
-      teacherComment: `Em ${student.name} có ý thức học tập tốt, ngoan ngoãn và chăm chỉ trong tuần.`,
-      parentTip: 'Cha mẹ hãy dành 10 phút mỗi tối để cùng con đọc sách hoặc lắng nghe con chia sẻ.',
-      isApproved: true,
+      strengths: '',
+      improvements: '',
+      familyCoordination: '',
+      teacherComment: '',
+      parentTip: '',
+      isApproved: false,
     };
 
     setEvalTitle(ev.title || `Tuần ${selectedWeek}`);
-    setAcademicScore(ev.academicScore ?? 4);
-    setAcademic((ev.academic as any) || 'Tốt');
-    setDisciplineScore(ev.disciplineScore ?? 5);
-    setDiscipline((ev.discipline as any) || 'Tốt');
-    setAttitudeScore(ev.attitudeScore ?? 4);
-    setAttitude((ev.attitude as any) || 'Tích cực');
-    setCooperationScore(ev.cooperationScore ?? 4);
-    setCooperation((ev.cooperation as any) || 'Tốt');
+    setAcademicScore(ev.academicScore ?? 0);
+    setAcademic((ev.academic as any) || 'Chưa đánh giá');
+    setDisciplineScore(ev.disciplineScore ?? 0);
+    setDiscipline((ev.discipline as any) || 'Chưa đánh giá');
+    setAttitudeScore(ev.attitudeScore ?? 0);
+    setAttitude((ev.attitude as any) || 'Chưa đánh giá');
+    setCooperationScore(ev.cooperationScore ?? 0);
+    setCooperation((ev.cooperation as any) || 'Chưa đánh giá');
     setAttendanceScore(ev.attendanceScore ?? 5);
     setAttendance((ev.attendance as any) || 'Tốt (Đúng giờ)');
-    setProgressStars(ev.progressStars ?? 4);
+    setProgressStars(ev.progressStars ?? 0);
     setProgressTrend(ev.progressTrend || 'steady');
 
     const lit = ev.literatureWeekly || {};
-    setLitLesson(lit.lessonTitle || 'Chương trình Ngữ Văn tuần này');
+    setLitLesson(lit.lessonTitle || '');
     setLitScore(lit.score !== undefined && lit.score !== null ? String(lit.score) : '');
     setLitFeedback(lit.feedback || student.literatureGrades?.feedback || '');
     setLitReadingSkill(lit.readingSkill || 'Nắm chắc kiến thức & nội dung chính');
     setLitWritingSkill(lit.writingSkill || 'Khá tốt, biết diễn đạt cảm xúc');
 
-    setTeacherComment(ev.teacherComment || `${student.name} có ý thức học tập tốt.`);
+    setTeacherComment(ev.teacherComment || '');
     setStrengths(ev.strengths || '');
     setImprovements(ev.improvements || '');
 
@@ -140,12 +166,12 @@ export const EvaluationComposerModal: React.FC<EvaluationComposerModalProps> = (
     setSubjectEnglish(ev.subjectNotes?.english || '');
     setSubjectScience(ev.subjectNotes?.science || '');
 
-    setIsApproved(ev.isApproved ?? true);
+    setIsApproved(ev.isApproved ?? false);
 
-    setSelectedAttitudeTags(['Tích cực, hăng hái']);
-    setSelectedStudyTags(['Nắm chắc kiến thức bài học']);
-    setSelectedCoopTags(['Hợp tác nhóm rất tốt']);
-    setSelectedDisciplineTags(['Nề nếp học tập rất chuẩn mực']);
+    setSelectedAttitudeTags([]);
+    setSelectedStudyTags([]);
+    setSelectedCoopTags([]);
+    setSelectedDisciplineTags([]);
   }, [student, selectedWeek]);
 
   if (!isOpen || !student) return null;
@@ -917,6 +943,15 @@ export const EvaluationComposerModal: React.FC<EvaluationComposerModalProps> = (
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleClearAllFields}
+              className="px-3 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold flex items-center gap-1 transition-colors"
+              title="Xóa trắng để trống mọi điểm và nhận xét"
+            >
+              Để trống nội dung
+            </button>
+
             <button
               type="button"
               onClick={onClose}

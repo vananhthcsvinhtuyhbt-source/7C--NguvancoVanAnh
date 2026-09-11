@@ -20,7 +20,13 @@ import {
 } from 'lucide-react';
 
 export const LiteratureGradebook: React.FC = () => {
-  const { students, updateLiteratureGrades, batchRecalculateLiteratureAverages, classInfo } = useClass();
+  const {
+    students,
+    updateLiteratureGrades,
+    batchRecalculateLiteratureAverages,
+    clearAllGradesAndComments,
+    classInfo,
+  } = useClass();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [gradeFilter, setGradeFilter] = useState<'all' | 'excellent' | 'good' | 'average' | 'needs_attention'>('all');
@@ -350,6 +356,21 @@ export const LiteratureGradebook: React.FC = () => {
           >
             <Zap className="w-3.5 h-3.5 text-indigo-600" />
             <span>Tính lại ĐTB tự động</span>
+          </button>
+
+          {/* Clear All Grades & Comments Button */}
+          <button
+            onClick={() => {
+              if (window.confirm('Cô Vân Anh có chắc muốn để trống toàn bộ điểm và nhận xét môn Ngữ Văn của tất cả học sinh để bắt đầu nhập mới?')) {
+                clearAllGradesAndComments();
+                showToast('Đã để trống toàn bộ điểm và nhận xét của lớp 7C!');
+              }
+            }}
+            className="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+            title="Để trống toàn bộ điểm số và lời phê môn Ngữ Văn của cả lớp"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+            <span>Để trống điểm & nhận xét</span>
           </button>
         </div>
       </div>
@@ -872,22 +893,47 @@ export const LiteratureGradebook: React.FC = () => {
             </div>
 
             {/* Modal actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-5 mt-5 border-t border-slate-100">
+            <div className="flex items-center justify-between gap-2.5 pt-5 mt-5 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setEditingStudent(null)}
-                className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                onClick={() => {
+                  setFormOral('');
+                  setFormTest15m1('');
+                  setFormTest15m2('');
+                  setFormPeriod('');
+                  setFormMidterm('');
+                  setFormFinalExam('');
+                  setFormAverage('');
+                  setFormIsCustomAverage(false);
+                  setFormFeedback('');
+                  setFormWritingSkill('');
+                  setFormReadingSkill('');
+                  setFormSpeakingSkill('');
+                }}
+                className="px-3.5 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5"
+                title="Xóa trắng để trống toàn bộ điểm và lời phê của học sinh này"
               >
-                Hủy
+                <RotateCcw className="w-3.5 h-3.5" />
+                Để trống điểm & lời phê
               </button>
-              <button
-                type="button"
-                onClick={handleSaveModal}
-                className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-              >
-                <Save className="w-4 h-4" />
-                Lưu toàn bộ thay đổi
-              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingStudent(null)}
+                  className="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveModal}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  Lưu toàn bộ thay đổi
+                </button>
+              </div>
             </div>
           </div>
         </div>

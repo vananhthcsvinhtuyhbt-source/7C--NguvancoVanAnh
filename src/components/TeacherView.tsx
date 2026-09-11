@@ -29,6 +29,7 @@ import {
   Sliders,
   UserCog,
   Lock,
+  RotateCcw,
 } from 'lucide-react';
 import { LiteratureGradebook } from './LiteratureGradebook';
 import { LiteratureLessonManager } from './LiteratureLessonManager';
@@ -49,6 +50,7 @@ export const TeacherView: React.FC = () => {
     deleteWeek,
     updateEvaluation,
     batchApproveEvaluations,
+    clearAllGradesAndComments,
     announcements,
     addAnnouncement,
     deleteAnnouncement,
@@ -63,10 +65,10 @@ export const TeacherView: React.FC = () => {
     lockTeacher,
   } = useClass();
 
-  // Admin Active Tab
+  // Admin Active Tab: Chỉ đơn giản có 4 mục: Điểm, Nhận xét, Dặn dò & Thông báo, Hộp thư Ph & HS
   const [activeAdminTab, setActiveAdminTab] = useState<
-    'evaluations' | 'literature_grades' | 'literature_lessons' | 'announcements' | 'messages'
-  >('evaluations');
+    'grades' | 'comments' | 'announcements' | 'messages'
+  >('grades');
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -252,6 +254,19 @@ export const TeacherView: React.FC = () => {
               </button>
 
               <button
+                id="btn-clear-all-data"
+                onClick={() => {
+                  if (window.confirm('Cô Vân Anh có chắc muốn để trống toàn bộ điểm và nhận xét của cả lớp 7C để nhập mới từ đầu?')) {
+                    clearAllGradesAndComments();
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors"
+                title="Để trống toàn bộ điểm và lời phê của học sinh để bắt đầu nhập liệu mới"
+              >
+                <RotateCcw className="w-4 h-4 text-rose-500" /> Để trống điểm & nhận xét
+              </button>
+
+              <button
                 id="btn-batch-approve"
                 onClick={() => batchApproveEvaluations(selectedWeek)}
                 className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold flex items-center gap-1.5 shadow-xs transition-colors"
@@ -323,76 +338,63 @@ export const TeacherView: React.FC = () => {
 
           </div>
 
-          {/* 5 Admin Navigation Tabs */}
+          {/* 4 Admin Navigation Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mt-6 pt-4 border-t border-slate-200">
             <button
-              id="admin-nav-evaluations"
-              onClick={() => setActiveAdminTab('evaluations')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                activeAdminTab === 'evaluations'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>1. Sổ nhận xét tuần ({totalStudents})</span>
-            </button>
-
-            <button
-              id="admin-nav-literature-grades"
-              onClick={() => setActiveAdminTab('literature_grades')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                activeAdminTab === 'literature_grades'
+              id="admin-nav-grades"
+              onClick={() => setActiveAdminTab('grades')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+                activeAdminTab === 'grades'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               <FileSpreadsheet className="w-4 h-4" />
-              <span>2. Sổ điểm Ngữ Văn (Nhập điểm)</span>
+              <span>1. Điểm</span>
             </button>
 
             <button
-              id="admin-nav-literature-lessons"
-              onClick={() => setActiveAdminTab('literature_lessons')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
-                activeAdminTab === 'literature_lessons'
-                  ? 'bg-blue-600 text-white shadow-xs'
+              id="admin-nav-comments"
+              onClick={() => setActiveAdminTab('comments')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+                activeAdminTab === 'comments'
+                  ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
-              <BookOpen className="w-4 h-4" />
-              <span>3. Kế hoạch & Dặn dò bài học</span>
+              <CheckCircle2 className="w-4 h-4" />
+              <span>2. Nhận xét ({totalStudents})</span>
             </button>
 
             <button
               id="admin-nav-announcements"
               onClick={() => setActiveAdminTab('announcements')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
                 activeAdminTab === 'announcements'
                   ? 'bg-amber-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               <BookmarkPlus className="w-4 h-4" />
-              <span>4. Thông báo lớp ({announcements.length})</span>
+              <span>3. Dặn dò & Thông báo ({announcements.length})</span>
             </button>
 
             <button
               id="admin-nav-messages"
               onClick={() => setActiveAdminTab('messages')}
-              className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
                 activeAdminTab === 'messages'
                   ? 'bg-purple-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               <MessageSquare className="w-4 h-4" />
-              <span>5. Hộp thư phụ huynh ({students.reduce((acc, s) => acc + s.parentMessages.length, 0)})</span>
+              <span>4. Hộp thư Ph & HS ({students.reduce((acc, s) => acc + s.parentMessages.length, 0)})</span>
             </button>
           </div>
 
-          {/* Week Selector Bar - When activeAdminTab === 'evaluations' */}
-          {activeAdminTab === 'evaluations' && (
+          {/* Week Selector Bar - When activeAdminTab === 'comments' */}
+          {activeAdminTab === 'comments' && (
             <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-slate-100">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
@@ -460,9 +462,18 @@ export const TeacherView: React.FC = () => {
       </div>
 
       {/* ======================================================== */}
-      {/* 1. TAB: SỔ NHẬN XÉT TUẦN                                 */}
+      {/* 1. TAB: ĐIỂM (SỔ ĐIỂM NGỮ VĂN CÔ VÂN ANH)                */}
       {/* ======================================================== */}
-      {activeAdminTab === 'evaluations' && (
+      {activeAdminTab === 'grades' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+          <LiteratureGradebook />
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 2. TAB: NHẬN XÉT (SỔ NHẬN XÉT HỌC SINH)                 */}
+      {/* ======================================================== */}
+      {activeAdminTab === 'comments' && (
         <>
           {/* Filter Chips Bar */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5">
@@ -738,25 +749,7 @@ export const TeacherView: React.FC = () => {
       )}
 
       {/* ======================================================== */}
-      {/* 2. TAB: SỔ ĐIỂM NGỮ VĂN (CÔ VÂN ANH)                     */}
-      {/* ======================================================== */}
-      {activeAdminTab === 'literature_grades' && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-          <LiteratureGradebook />
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* 3. TAB: KẾ HOẠCH & DẶN DÒ BÀI HỌC (CÔ VÂN ANH)           */}
-      {/* ======================================================== */}
-      {activeAdminTab === 'literature_lessons' && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
-          <LiteratureLessonManager />
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* 4. TAB: THÔNG BÁO LỚP 7C                                 */}
+      {/* 3. TAB: DẶN DÒ & THÔNG BÁO                               */}
       {/* ======================================================== */}
       {activeAdminTab === 'announcements' && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
@@ -765,118 +758,144 @@ export const TeacherView: React.FC = () => {
               <div>
                 <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <BookmarkPlus className="w-5 h-5 text-amber-600" />
-                  Bảng tin & Thông báo Lớp 7C
+                  Dặn dò & Thông báo Lớp 7C
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                  Đăng dặn dò, lịch thi, sự kiện lớp học gửi trực tiếp đến toàn thể phụ huynh
+                  Đăng dặn dò, lịch thi, bài tập hoặc thông báo mới để gửi trực tiếp đến phụ huynh và học sinh
                 </p>
               </div>
               <button
                 onClick={() => setShowAnnounceModal(true)}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-xs transition-colors self-start sm:self-auto"
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 shadow-xs transition-colors self-start sm:self-auto"
               >
                 <Plus className="w-4 h-4" /> Đăng thông báo mới
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
-              {announcements.map((ann) => (
-                <div
-                  key={ann.id}
-                  className={`p-5 rounded-2xl border transition-all ${
-                    ann.pinned
-                      ? 'bg-rose-50/40 border-rose-200'
-                      : ann.category === 'reminder'
-                      ? 'bg-amber-50/40 border-amber-200'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                      ann.category === 'important'
-                        ? 'bg-rose-100 text-rose-800'
+            {announcements.length === 0 ? (
+              <div className="py-16 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3 text-2xl shadow-xs">
+                  📢
+                </div>
+                <h4 className="text-base font-bold text-slate-800">Chưa có dặn dò hoặc thông báo nào</h4>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-md mx-auto">
+                  Dữ liệu hiện đang để trống để cô giáo tự chỉnh. Cô Vân Anh hãy nhấn nút <strong>"Đăng thông báo mới"</strong> ở góc trên để tạo bài đăng đầu tiên.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+                {announcements.map((ann) => (
+                  <div
+                    key={ann.id}
+                    className={`p-5 rounded-2xl border transition-all ${
+                      ann.pinned
+                        ? 'bg-rose-50/40 border-rose-200'
                         : ann.category === 'reminder'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-emerald-100 text-emerald-800'
-                    }`}>
-                      {ann.pinned ? '📌 ' : ''}{ann.category === 'important' ? 'Quan trọng' : ann.category === 'reminder' ? 'Nhắc nhở' : 'Thành tích'}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">{ann.date}</span>
-                      <button
-                        onClick={() => deleteAnnouncement(ann.id)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                        title="Xóa thông báo"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                        ? 'bg-amber-50/40 border-amber-200'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                        ann.category === 'important'
+                          ? 'bg-rose-100 text-rose-800'
+                          : ann.category === 'reminder'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {ann.pinned ? '📌 ' : ''}{ann.category === 'important' ? 'Quan trọng' : ann.category === 'reminder' ? 'Nhắc nhở' : 'Thành tích'}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-400">{ann.date}</span>
+                        <button
+                          onClick={() => deleteAnnouncement(ann.id)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="Xóa thông báo"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <h4 className="font-bold text-slate-900 text-base mb-1.5">{ann.title}</h4>
+                    <p className="text-xs sm:text-sm text-slate-600 whitespace-pre-line leading-relaxed">
+                      {ann.content}
+                    </p>
+                    <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500">
+                      <span>Đăng bởi: <strong>{ann.author}</strong></span>
+                      <span className="text-[11px] text-indigo-600 font-semibold">Tất cả PH 7C đều thấy</span>
                     </div>
                   </div>
-                  <h4 className="font-bold text-slate-900 text-base mb-1.5">{ann.title}</h4>
-                  <p className="text-xs sm:text-sm text-slate-600 whitespace-pre-line leading-relaxed">
-                    {ann.content}
-                  </p>
-                  <div className="mt-3 pt-3 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500">
-                    <span>Đăng bởi: <strong>{ann.author}</strong></span>
-                    <span className="text-[11px] text-indigo-600 font-semibold">Tất cả PH 7C đều thấy</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* ======================================================== */}
-      {/* 5. TAB: HỘP THƯ PHỤ HUYNH                                */}
+      {/* 4. TAB: HỘP THƯ PH & HS                                  */}
       {/* ======================================================== */}
-      {(activeAdminTab === 'messages' || activeAdminTab === 'evaluations') && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      {activeAdminTab === 'messages' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">💬</span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-bold text-slate-900">
-                    Hộp thư phản hồi từ Phụ huynh Lớp 7C
+                    Hộp thư Phụ huynh & Học sinh Lớp 7C
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Ý kiến, lời cảm ơn và trao đổi trực tiếp của cha mẹ học sinh gửi cô Vân Anh
+                    Trao đổi 2 chiều giữa phụ huynh/học sinh và cô giáo Vân Anh
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-50 text-purple-700">
                 {students.reduce((acc, s) => acc + s.parentMessages.length, 0)} tin nhắn
               </span>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-              {students
-                .flatMap((s) => s.parentMessages.map((m) => ({ ...m, student: s })))
-                .map((msg) => (
-                  <div key={msg.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-900">{msg.sender} (HS: {msg.student.name})</span>
-                      <span className="text-slate-400">{msg.date}</span>
-                    </div>
-                    <p className="text-xs sm:text-sm text-slate-700 bg-white p-3 rounded-xl border border-slate-100">
-                      "{msg.content}"
-                    </p>
-                    {msg.reply ? (
-                      <div className="text-xs text-indigo-700 bg-indigo-50 p-2.5 rounded-xl border border-indigo-100">
-                        <strong>Cô Vân Anh đã trả lời:</strong> "{msg.reply}"
+            {students.reduce((acc, s) => acc + s.parentMessages.length, 0) === 0 ? (
+              <div className="py-16 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-3 text-2xl shadow-xs">
+                  💬
+                </div>
+                <h4 className="text-base font-bold text-slate-800">Hộp thư hiện đang trống</h4>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-md mx-auto">
+                  Chưa có tin nhắn nào từ phụ huynh hoặc học sinh gửi đến. Khi phụ huynh gửi lời nhắn, tin nhắn sẽ hiển thị tại đây để cô giáo xem và phản hồi trực tiếp.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                {students
+                  .flatMap((s) => s.parentMessages.map((m) => ({ ...m, student: s })))
+                  .map((msg) => (
+                    <div key={msg.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-slate-900">{msg.sender} (HS: {msg.student.name})</span>
+                        <span className="text-slate-400">{msg.date}</span>
                       </div>
-                    ) : (
-                      <button
-                        onClick={() => setReplyingStudent({ student: msg.student, messageId: msg.id })}
-                        className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-1"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" /> Trả lời phụ huynh
-                      </button>
-                    )}
-                  </div>
-                ))}
-            </div>
+                      <p className="text-xs sm:text-sm text-slate-700 bg-white p-3 rounded-xl border border-slate-100">
+                        "{msg.content}"
+                      </p>
+                      {msg.reply ? (
+                        <div className="text-xs text-indigo-700 bg-indigo-50 p-2.5 rounded-xl border border-indigo-100">
+                          <strong>Cô Vân Anh đã trả lời:</strong> "{msg.reply}"
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setReplyingStudent({ student: msg.student, messageId: msg.id })}
+                          className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-1"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" /> Trả lời phụ huynh
+                        </button>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       )}

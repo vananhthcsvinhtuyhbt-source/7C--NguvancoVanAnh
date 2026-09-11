@@ -55,6 +55,8 @@ interface ClassContextType {
   deleteLessonContent: (id: string) => void;
   updateLiteratureGrades: (studentId: string, data: Partial<LiteratureGradeRecord>) => void;
   batchRecalculateLiteratureAverages: () => void;
+  clearAllGradesAndComments: () => void;
+  clearStudentGradesAndComments: (studentId: string) => void;
   addParentMessage: (studentId: string, content: string) => void;
   replyParentMessage: (studentId: string, messageId: string, reply: string) => void;
   addBadge: (studentId: string, badge: Omit<Badge, 'id'>) => void;
@@ -69,8 +71,8 @@ interface ClassContextType {
 
 const ClassContext = createContext<ClassContextType | undefined>(undefined);
 
-const STORAGE_STUDENTS_KEY = 'so_lien_lac_7c_students_v1';
-const STORAGE_ANNOUNCEMENTS_KEY = 'so_lien_lac_7c_announcements_v1';
+const STORAGE_STUDENTS_KEY = 'so_lien_lac_7c_students_v4';
+const STORAGE_ANNOUNCEMENTS_KEY = 'so_lien_lac_7c_announcements_v2';
 const STORAGE_LESSONS_KEY = 'so_lien_lac_7c_lessons_v1';
 const STORAGE_WEEKS_KEY = 'so_lien_lac_7c_weeks_v1';
 const STORAGE_CLASS_INFO_KEY = 'so_lien_lac_7c_class_info_v1';
@@ -136,15 +138,18 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return {
             ...s,
             literatureGrades: s.literatureGrades || init?.literatureGrades || {
-              oral: 8.5,
-              test15m1: 8.0,
-              test15m2: 8.5,
-              periodTest: 8.0,
+              oral: null,
+              test15m1: null,
+              test15m2: null,
+              periodTest: null,
               midterm: null,
-              semesterAverage: 8.2,
-              feedback: 'Ngoan, có ý thức học tập tốt môn Ngữ Văn.',
-              writingSkill: 'Tốt',
-              readingSkill: 'Nắm chắc ý chính',
+              finalExam: null,
+              semesterAverage: null,
+              averageScore: null,
+              feedback: '',
+              teacherRemarks: '',
+              writingSkill: '',
+              readingSkill: '',
             },
           };
         });
@@ -673,6 +678,8 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const totalScore = scores.reduce((sum, s, idx) => sum + s * weights[idx], 0);
             const totalWeight = weights.reduce((sum, w) => sum + w, 0);
             finalAvg = Math.round((totalScore / totalWeight) * 10) / 10;
+          } else {
+            finalAvg = null;
           }
         }
 
@@ -683,7 +690,7 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         merged.fifteenMinScores = [merged.test15m1, merged.test15m2].filter((v): v is number => typeof v === 'number');
         merged.onePeriodScores = merged.periodTest !== null && merged.periodTest !== undefined ? [merged.periodTest] : [];
         merged.midTermScore = merged.midterm;
-        merged.finalTermScore = merged.finalExam !== null && merged.finalExam !== undefined ? merged.finalExam : 'Chưa thi';
+        merged.finalTermScore = merged.finalExam !== null && merged.finalExam !== undefined ? merged.finalExam : null;
         merged.teacherRemarks = merged.feedback;
         merged.readingCompetency = merged.readingSkill;
         merged.writingCompetency = merged.writingSkill;
@@ -710,7 +717,7 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (typeof merged.midterm === 'number' && !isNaN(merged.midterm)) { scores.push(merged.midterm); weights.push(2); }
         if (typeof merged.finalExam === 'number' && !isNaN(merged.finalExam)) { scores.push(merged.finalExam); weights.push(3); }
 
-        let calculatedAvg = merged.semesterAverage;
+        let calculatedAvg: number | null = null;
         if (scores.length > 0) {
           const totalScore = scores.reduce((sum, s, idx) => sum + s * weights[idx], 0);
           const totalWeight = weights.reduce((sum, w) => sum + w, 0);
@@ -722,6 +729,137 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return {
           ...student,
           literatureGrades: merged,
+        };
+      })
+    );
+  };
+
+  const clearAllGradesAndComments = () => {
+    setStudents((prev) =>
+      prev.map((student) => {
+        const blankLit: LiteratureGradeRecord = {
+          oral: null,
+          test15m1: null,
+          test15m2: null,
+          periodTest: null,
+          midterm: null,
+          finalExam: null,
+          semesterAverage: null,
+          averageScore: null,
+          isCustomAverage: false,
+          feedback: '',
+          teacherRemarks: '',
+          writingSkill: '',
+          readingSkill: '',
+          oralSkill: '',
+          oralScores: [],
+          fifteenMinScores: [],
+          onePeriodScores: [],
+          midTermScore: null,
+          finalTermScore: null,
+          readingCompetency: '',
+          writingCompetency: '',
+          speakingListeningCompetency: '',
+        };
+
+        const cleanedEvals: Record<number, WeeklyEvaluation> = {};
+        Object.entries(student.weeklyEvaluations || {}).forEach(([wStr, ev]) => {
+          const evalObj = ev as WeeklyEvaluation;
+          const w = Number(wStr);
+          cleanedEvals[w] = {
+            ...evalObj,
+            academic: 'Chưa đánh giá',
+            academicScore: 0,
+            discipline: 'Chưa đánh giá',
+            disciplineScore: 0,
+            attitude: 'Chưa đánh giá',
+            attitudeScore: 0,
+            cooperation: 'Chưa đánh giá',
+            cooperationScore: 0,
+            progressStars: 0,
+            progressTrend: 'steady',
+            strengths: '',
+            improvements: '',
+            familyCoordination: '',
+            parentTip: '',
+            teacherComment: '',
+            subjectNotes: { math: '', literature: '', english: '' },
+            literatureWeekly: {
+              grade: null,
+              gradeType: '',
+              comment: '',
+              readingLevel: '',
+              writingLevel: '',
+            },
+            isApproved: false,
+          };
+        });
+
+        return {
+          ...student,
+          literatureGrades: blankLit,
+          weeklyEvaluations: cleanedEvals,
+        };
+      })
+    );
+  };
+
+  const clearStudentGradesAndComments = (studentId: string) => {
+    setStudents((prev) =>
+      prev.map((student) => {
+        if (student.id !== studentId) return student;
+
+        const blankLit: LiteratureGradeRecord = {
+          oral: null,
+          test15m1: null,
+          test15m2: null,
+          periodTest: null,
+          midterm: null,
+          finalExam: null,
+          semesterAverage: null,
+          averageScore: null,
+          isCustomAverage: false,
+          feedback: '',
+          teacherRemarks: '',
+          writingSkill: '',
+          readingSkill: '',
+          oralSkill: '',
+          oralScores: [],
+          fifteenMinScores: [],
+          onePeriodScores: [],
+          midTermScore: null,
+          finalTermScore: null,
+          readingCompetency: '',
+          writingCompetency: '',
+          speakingListeningCompetency: '',
+        };
+
+        const cleanedEvals: Record<number, WeeklyEvaluation> = {};
+        Object.entries(student.weeklyEvaluations || {}).forEach(([wStr, ev]) => {
+          const evalObj = ev as WeeklyEvaluation;
+          const w = Number(wStr);
+          cleanedEvals[w] = {
+            ...evalObj,
+            teacherComment: '',
+            strengths: '',
+            improvements: '',
+            familyCoordination: '',
+            parentTip: '',
+            subjectNotes: { math: '', literature: '', english: '' },
+            literatureWeekly: {
+              grade: null,
+              gradeType: '',
+              comment: '',
+              readingLevel: '',
+              writingLevel: '',
+            },
+          };
+        });
+
+        return {
+          ...student,
+          literatureGrades: blankLit,
+          weeklyEvaluations: cleanedEvals,
         };
       })
     );
@@ -788,6 +926,8 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteLessonContent,
         updateLiteratureGrades,
         batchRecalculateLiteratureAverages,
+        clearAllGradesAndComments,
+        clearStudentGradesAndComments,
         addParentMessage,
         replyParentMessage,
         addBadge,

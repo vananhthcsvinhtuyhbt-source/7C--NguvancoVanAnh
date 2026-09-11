@@ -207,139 +207,48 @@ const RAW_NAMES: string[] = [
   'Vũ Hoàng Yến',
 ];
 
-function generateWeeklyEvaluations(studentName: string, index: number): Record<number, WeeklyEvaluation> {
-  const isHighPerformer = index % 3 === 0;
-  const needsAttention = index === 6 || index === 14 || index === 27;
-
-  const baseStars = needsAttention ? 3 : isHighPerformer ? 5 : 4;
-
-  const week1: WeeklyEvaluation = {
-    week: 1,
-    title: 'Tuần 1 (18/08 - 24/08)',
-    academic: isHighPerformer ? 'Xuất sắc' : 'Tốt',
-    academicScore: isHighPerformer ? 5 : 4,
-    discipline: 'Tốt',
-    disciplineScore: 5,
-    attitude: 'Tích cực',
-    attitudeScore: 4,
-    cooperation: 'Tốt',
-    cooperationScore: 4,
-    attendance: 'Tốt (Đúng giờ)',
+function generateWeeklyEvaluations(_studentName: string, _index: number): Record<number, WeeklyEvaluation> {
+  const createEmptyWeek = (week: number, title: string): WeeklyEvaluation => ({
+    week,
+    title,
+    academic: 'Chưa đánh giá',
+    academicScore: 0,
+    discipline: 'Chưa đánh giá',
+    disciplineScore: 0,
+    attitude: 'Chưa đánh giá',
+    attitudeScore: 0,
+    cooperation: 'Chưa đánh giá',
+    cooperationScore: 0,
+    attendance: 'Đúng giờ',
     attendanceScore: 5,
-    progressStars: 4,
+    progressStars: 0,
     progressTrend: 'steady',
-    strengths: 'Khởi động năm học mới hào hứng, hòa nhập nhanh với lớp.',
-    improvements: 'Cần ổn định giờ giấc sinh hoạt sau kỳ nghỉ hè.',
-    familyCoordination: 'Gia đình nhắc con chuẩn bị đầy đủ sách vở đầu năm.',
-    teacherComment: `${studentName} khởi đầu tuần đầu tiên rất tích cực, chủ động làm quen với nội quy lớp 7C.`,
+    strengths: '',
+    improvements: '',
+    familyCoordination: '',
+    teacherComment: '',
     subjectNotes: {
-      math: 'Làm quen bài tập số hữu tỉ tốt.',
-      literature: 'Tập trung nghe giảng bài thơ 4 chữ.',
-      english: 'Tham gia trò chơi từ vựng vui vẻ.',
-    },
-    parentTip: 'Cha mẹ hãy cùng con lập thời khóa biểu học tập cố định tại nhà cho năm học mới.',
-    isApproved: true,
-  };
-
-  const week2: WeeklyEvaluation = {
-    week: 2,
-    title: 'Tuần 2 (25/08 - 31/08)',
-    academic: isHighPerformer ? 'Xuất sắc' : 'Khá tốt',
-    academicScore: isHighPerformer ? 5 : 4,
-    discipline: 'Tốt',
-    disciplineScore: 5,
-    attitude: 'Rất tích cực',
-    attitudeScore: baseStars,
-    cooperation: 'Tốt',
-    cooperationScore: 4,
-    attendance: 'Tốt (Đúng giờ)',
-    attendanceScore: 5,
-    progressStars: isHighPerformer ? 5 : 4,
-    progressTrend: 'up',
-    strengths: 'Chủ động giơ tay xây dựng bài, có ý thức giúp đỡ bạn bè cùng bàn.',
-    improvements: 'Chữ viết đôi lúc còn hơi ẩu khi làm bài nhanh.',
-    familyCoordination: 'Cùng nhắc nhở con nắn nót hơn trong vở bài tập.',
-    teacherComment: `Cô khen ngợi tinh thần học tập hăng hái của ${studentName} trong các tiết học tuần này. Em tiếp tục phát huy nhé!`,
-    subjectNotes: {
-      math: 'Hiểu bài nhanh, giải toán hình chính xác.',
-      literature: 'Cần chú ý dùng từ chuẩn xác hơn.',
-      english: 'Luyện nghe phản xạ rất tốt.',
-    },
-    parentTip: 'Dành 10 phút tối nay để nghe con kể về một niềm vui ở lớp 7C.',
-    isApproved: true,
-  };
-
-  const week3: WeeklyEvaluation = {
-    week: 3,
-    title: 'Tuần 3 (01/09 - 07/09)',
-    academic: needsAttention ? 'Cần cố gắng' : isHighPerformer ? 'Xuất sắc' : 'Tốt',
-    academicScore: needsAttention ? 3 : isHighPerformer ? 5 : 4,
-    discipline: needsAttention ? 'Cần nhắc nhở' : 'Tốt',
-    disciplineScore: needsAttention ? 3 : 5,
-    attitude: needsAttention ? 'Chưa tập trung' : 'Tích cực',
-    attitudeScore: needsAttention ? 3 : 5,
-    cooperation: 'Tốt',
-    cooperationScore: 4,
-    attendance: 'Tốt (Đúng giờ)',
-    attendanceScore: 5,
-    progressStars: needsAttention ? 3 : isHighPerformer ? 5 : 4,
-    progressTrend: needsAttention ? 'needs_attention' : 'up',
-    strengths: needsAttention ? 'Có năng khiếu mỹ thuật và rất lễ phép.' : 'Tập trung cao độ, hoàn thành mọi bài tập nhóm xuất sắc.',
-    improvements: needsAttention ? 'Còn mất tập trung trong tiết KHTN, đôi lúc quên đồ dùng.' : 'Cần mạnh dạn hơn khi phát biểu trước toàn thể khối.',
-    familyCoordination: needsAttention ? 'Gia đình kiểm tra hòm đồ dùng học tập của con mỗi tối.' : 'Khuyến khích con tham gia đội văn nghệ hoặc thuyết trình.',
-    teacherComment: needsAttention
-      ? `Em ${studentName} ngoan ngoãn nhưng tuần này có phần lơ đãng. Cô mong con tập trung hơn trong giờ học nhé.`
-      : `Tuần học tuyệt vời của ${studentName}! Em thể hiện sự tự tin rõ rệt và dẫn dắt nhóm học tập rất tốt.`,
-    subjectNotes: {
-      math: needsAttention ? 'Cần ôn lại phép cộng trừ số nguyên.' : 'Điểm 9 kiểm tra 15 phút.',
-      literature: 'Bài viết có chiều sâu cảm xúc.',
-      english: 'Giao tiếp trôi chảy với cô giáo bản ngữ.',
-    },
-    parentTip: 'Hỏi con về một câu hỏi khó trong tuần mà con đã tìm ra lời giải.',
-    isApproved: true,
-  };
-
-  const week4: WeeklyEvaluation = {
-    week: 4,
-    title: 'Tuần 4 (08/09 - 14/09) - Tuần hiện tại',
-    academic: needsAttention ? 'Khá tốt' : isHighPerformer ? 'Xuất sắc' : 'Tốt',
-    academicScore: needsAttention ? 4 : isHighPerformer ? 5 : 4,
-    discipline: 'Tốt',
-    disciplineScore: 5,
-    attitude: 'Rất tích cực',
-    attitudeScore: isHighPerformer ? 5 : 4,
-    cooperation: 'Tốt',
-    cooperationScore: 5,
-    attendance: 'Tốt (Đúng giờ)',
-    attendanceScore: 5,
-    progressStars: needsAttention ? 4 : isHighPerformer ? 5 : 5,
-    progressTrend: 'up',
-    strengths: 'Có tiến bộ vượt bậc, tích cực thảo luận nhóm và xung phong lên bảng.',
-    improvements: 'Tiếp tục rèn luyện kỹ năng tóm tắt sơ đồ tư duy môn KHTN.',
-    familyCoordination: 'Gia đình tiếp tục duy trì động viên con như tuần qua.',
-    teacherComment: `${studentName} tuần này có sự nỗ lực rất đáng khen ngợi! Em nắm kiến thức bài học chắc chắn, chăm chỉ và chủ động giúp đỡ bạn. Cô Vân Anh rất tự hào về sự tiến bộ của em.`,
-    subjectNotes: {
-      math: 'Bài kiểm tra 1 tiết đạt kết quả rất tốt (9.0 điểm).',
-      literature: 'Viết đoạn văn mạch lạc, cảm thụ tốt.',
-      english: 'Hăng hái đóng kịch hội thoại theo nhóm.',
-      science: 'Hoàn thành báo cáo thực hành quang hợp chu đáo.',
+      math: '',
+      literature: '',
+      english: '',
     },
     literatureWeekly: {
-      grade: isHighPerformer ? 9.5 : needsAttention ? 7.0 : 8.5,
-      gradeType: '15 phút - Cảm thụ thơ 5 chữ & Viết đoạn',
-      comment: isHighPerformer
-        ? `Bài viết của ${studentName} về bài thơ 'Gặp lá cơm nếp' rất sâu sắc, dẫn chứng chọn lọc và giàu cảm xúc.`
-        : needsAttention
-        ? `Cô khen ${studentName} đã hoàn thành bài viết đúng hạn. Em lưu ý dùng dấu câu và liên kết câu chặt chẽ hơn nhé.`
-        : `${studentName} nắm vững kỹ năng viết đoạn văn biểu cảm, chữ viết sạch đẹp và có ý thức chuẩn bị bài tốt.`,
-      readingLevel: isHighPerformer ? 'Xuất sắc' : needsAttention ? 'Đạt' : 'Tốt',
-      writingLevel: isHighPerformer ? 'Xuất sắc' : needsAttention ? 'Khá' : 'Tốt',
+      grade: null,
+      gradeType: '',
+      comment: '',
+      readingLevel: '',
+      writingLevel: '',
     },
-    parentTip: 'Tuần này con đang tiến bộ rất nhanh. Cha mẹ hãy dành cho con một lời khen cụ thể vào bữa tối để tiếp thêm động lực!',
-    isApproved: true,
-  };
+    parentTip: '',
+    isApproved: false,
+  });
 
-  return { 1: week1, 2: week2, 3: week3, 4: week4 };
+  return {
+    1: createEmptyWeek(1, 'Tuần 1 (18/08 - 24/08)'),
+    2: createEmptyWeek(2, 'Tuần 2 (25/08 - 31/08)'),
+    3: createEmptyWeek(3, 'Tuần 3 (01/09 - 07/09)'),
+    4: createEmptyWeek(4, 'Tuần 4 (08/09 - 14/09) - Tuần hiện tại'),
+  };
 }
 
 export const INITIAL_STUDENTS: Student[] = RAW_NAMES.map((name, idx) => {
@@ -351,29 +260,31 @@ export const INITIAL_STUDENTS: Student[] = RAW_NAMES.map((name, idx) => {
     name.includes('Thảo') || name.includes('Trang') || name.includes('Yến') || name.includes('Khuê') || name.includes('Viên');
 
   const color = avatarColors[idx % avatarColors.length];
-  const needsAttention = idx === 6 || idx === 14 || idx === 27;
-  const isHighPerformer = idx === 0 || idx === 1 || idx === 8 || idx === 18 || idx === 20 || idx === 32;
-
-  const oralGrade = isHighPerformer ? 9.5 : needsAttention ? 7.0 : Math.round((8.0 + ((idx * 3) % 4) * 0.5) * 10) / 10;
-  const test15m1Grade = isHighPerformer ? 9.0 : needsAttention ? 6.5 : Math.round((7.5 + ((idx * 2) % 4) * 0.5) * 10) / 10;
-  const test15m2Grade = isHighPerformer ? 9.5 : needsAttention ? 7.0 : Math.round((8.0 + ((idx * 5) % 4) * 0.5) * 10) / 10;
-  const periodGrade = isHighPerformer ? 9.0 : needsAttention ? 6.75 : Math.round((7.75 + ((idx * 7) % 4) * 0.5) * 10) / 10;
-  const avg = Math.round(((oralGrade + test15m1Grade + test15m2Grade + periodGrade * 2) / 5) * 10) / 10;
+  const needsAttention = false;
 
   const literatureGrades: LiteratureGradeRecord = {
-    oral: oralGrade,
-    test15m1: test15m1Grade,
-    test15m2: test15m2Grade,
-    periodTest: periodGrade,
-    midterm: null, // Chưa thi
-    semesterAverage: avg,
-    feedback: isHighPerformer
-      ? 'Cảm thụ văn học rất tinh tế, cảm xúc sâu sắc. Đoạn văn viết giàu hình ảnh và lập luận chặt chẽ.'
-      : needsAttention
-      ? 'Có cố gắng khi viết bài. Cần chú ý lỗi chính tả, ngắt câu và đọc kỹ đề bài hơn.'
-      : 'Nắm chắc kiến thức bài học, tích cực xây dựng bài trên lớp. Bài viết tiến bộ rõ rệt.',
-    writingSkill: isHighPerformer ? 'Xuất sắc' : needsAttention ? 'Khá' : 'Tốt',
-    readingSkill: isHighPerformer ? 'Cảm thụ rất tốt' : needsAttention ? 'Nắm ý cơ bản' : 'Nắm chắc ý chính',
+    oral: null,
+    test15m1: null,
+    test15m2: null,
+    periodTest: null,
+    midterm: null,
+    finalExam: null,
+    semesterAverage: null,
+    averageScore: null,
+    isCustomAverage: false,
+    feedback: '',
+    teacherRemarks: '',
+    writingSkill: '',
+    readingSkill: '',
+    oralSkill: '',
+    oralScores: [],
+    fifteenMinScores: [],
+    onePeriodScores: [],
+    midTermScore: null,
+    finalTermScore: null,
+    readingCompetency: '',
+    writingCompetency: '',
+    speakingListeningCompetency: '',
   };
 
   return {
@@ -387,111 +298,15 @@ export const INITIAL_STUDENTS: Student[] = RAW_NAMES.map((name, idx) => {
     avatarColor: color,
     avatarIcon: isFemale ? '👧' : '👦',
     needsAttention,
-    attentionReason: needsAttention ? 'Cần hỗ trợ thêm môn Toán và rèn nề nếp tập trung' : undefined,
+    attentionReason: undefined,
     weeklyEvaluations: generateWeeklyEvaluations(name, idx),
     literatureGrades,
-    badges: [
-      {
-        id: `b1-${code}`,
-        title: 'Học sinh tiến bộ',
-        icon: '🏅',
-        date: '10/09/2026',
-        description: 'Được tuyên dương vì sự nỗ lực vươn lên trong học tập',
-        color: 'bg-amber-100 text-amber-800 border-amber-300',
-      },
-      {
-        id: `b2-${code}`,
-        title: 'Chăm học chăm làm',
-        icon: '📚',
-        date: '03/09/2026',
-        description: 'Hoàn thành 100% bài tập về nhà đúng hạn',
-        color: 'bg-blue-100 text-blue-800 border-blue-300',
-      },
-      {
-        id: `b3-${code}`,
-        title: 'Đồng đội tuyệt vời',
-        icon: '🤝',
-        date: '27/08/2026',
-        description: 'Tích cực hỗ trợ bạn bè trong các hoạt động nhóm',
-        color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-      },
-    ],
-    portfolio: [
-      {
-        id: `p1-${code}`,
-        title: 'Sơ đồ tư duy môn Khoa học Tự nhiên',
-        type: 'Dự án học tập',
-        date: '09/09/2026',
-        description: 'Bản đồ tư duy tổng hợp chủ đề Tế bào sinh học với hình vẽ minh họa sáng tạo.',
-      },
-      {
-        id: `p2-${code}`,
-        title: 'Bài thuyết trình Lịch sử & Địa lí',
-        type: 'Sản phẩm sáng tạo',
-        date: '02/09/2026',
-        description: 'Tham gia thiết kế slide và thuyết trình về nền văn minh Đại Việt.',
-      },
-      {
-        id: `p3-${code}`,
-        title: 'Giấy khen Nụ cười Tân Khai',
-        type: 'Giấy khen',
-        date: '05/09/2026',
-        description: 'Được lớp và Cô Vân Anh bình chọn gương mặt tích cực đầu năm học.',
-      },
-    ],
-    personalGoal: 'Đạt điểm 9 môn Ngữ Văn giữa kỳ I và tự tin phát biểu ít nhất 2 lần mỗi ngày.',
-    parentMessages: [
-      {
-        id: `msg-${code}-1`,
-        date: '11/09/2026 19:30',
-        sender: `Phụ huynh em ${name}`,
-        content: 'Chào cô Vân Anh ạ. Tuần này cháu về khoe được cô khen ở lớp, gia đình rất vui và cảm ơn cô đã luôn sát sao với con ạ!',
-        reply: 'Dạ cô chào gia đình ạ! Con tuần này rất ngoan và chăm chỉ, cô trò mình tiếp tục cùng đồng hành động viên con nhé!',
-        repliedAt: '11/09/2026 20:15',
-      },
-    ],
+    badges: [],
+    portfolio: [],
+    personalGoal: '',
+    parentMessages: [],
   };
 });
 
-export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
-  {
-    id: 'ann-1',
-    title: '🔴 Lịch kiểm tra giữa học kỳ I & Ôn tập môn Ngữ Văn Lớp 7C',
-    category: 'important',
-    date: '11/09/2026',
-    author: 'Cô Vân Anh - Giáo viên Ngữ Văn',
-    pinned: true,
-    content:
-      'Kính gửi Quý phụ huynh lớp 7C!\n\nNhà trường dự kiến tổ chức kiểm tra giữa học kỳ I môn Ngữ Văn vào tuần thứ 9. Trong 2 tuần tới, Cô Vân Anh sẽ tăng cường ôn tập kiến thức trọng tâm đọc hiểu và rèn kỹ năng viết đoạn văn. Đề nghị Quý phụ huynh phối hợp nhắc nhở các con hoàn thành bài tập về nhà, giữ gìn sức khỏe và ngủ đủ giấc.\n\nTrân trọng!',
-  },
-  {
-    id: 'ann-2',
-    title: '🟡 Nhắc việc: Chuẩn bị văn bản bài học Ngữ Văn thứ Sáu',
-    category: 'reminder',
-    date: '10/09/2026',
-    author: 'Cô Vân Anh - Giáo viên Ngữ Văn',
-    pinned: false,
-    content:
-      'Thứ Sáu ngày 13/09, lớp 7C có tiết Đọc - hiểu Ngữ Văn (Văn bản "Gặp lá cơm nếp"). Các con nhớ soạn bài trước theo phiếu học tập, đọc kỹ phần tri thức Ngữ Văn và mang đầy đủ sách giáo khoa.',
-  },
-  {
-    id: 'ann-3',
-    title: '🟢 Tuyên dương: Lớp 7C đạt nhiều điểm tốt môn Ngữ Văn tuần 4',
-    category: 'achievement',
-    date: '08/09/2026',
-    author: 'Cô Vân Anh - Giáo viên Ngữ Văn',
-    pinned: false,
-    content:
-      'Nhiệt liệt biểu dương tinh thần tích cực, sáng tạo của các bạn học sinh 7C trong các tiết học Ngữ Văn tuần qua! Nhiều bạn đã có những đoạn văn biểu cảm giàu cảm xúc và phát biểu sôi nổi trong giờ học.',
-  },
-  {
-    id: 'ann-4',
-    title: '🟡 Nhắc việc: Đăng ký tham gia Câu lạc bộ Đọc sách & Sáng tác văn học',
-    category: 'reminder',
-    date: '05/09/2026',
-    author: 'Cô Vân Anh - Giáo viên Ngữ Văn',
-    pinned: false,
-    content:
-      'Cô Vân Anh mở câu lạc bộ Đọc sách và rèn kỹ năng viết văn dành cho các bạn học sinh 7C có niềm đam mê văn học. Phụ huynh có nhu cầu đăng ký cho con xin gửi tin nhắn cho Cô trước ngày 15/09.',
-  },
-];
+export const INITIAL_ANNOUNCEMENTS: Announcement[] = [];
+
