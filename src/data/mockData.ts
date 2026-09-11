@@ -272,6 +272,7 @@ export const INITIAL_STUDENTS: Student[] = RAW_NAMES.map((name, idx) => {
     semesterAverage: null,
     averageScore: null,
     isCustomAverage: false,
+    isApproved: false,
     feedback: '',
     teacherRemarks: '',
     writingSkill: '',

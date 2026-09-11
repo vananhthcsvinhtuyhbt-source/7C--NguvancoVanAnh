@@ -7,6 +7,7 @@ import {
   PortfolioItem,
   LiteratureLessonContent,
   LiteratureGradeRecord,
+  GradeColumnNames,
   WeekInfo,
   ClassInfo,
 } from '../types';
@@ -55,6 +56,10 @@ interface ClassContextType {
   deleteLessonContent: (id: string) => void;
   updateLiteratureGrades: (studentId: string, data: Partial<LiteratureGradeRecord>) => void;
   batchRecalculateLiteratureAverages: () => void;
+  batchApproveLiteratureGrades: (approved: boolean) => void;
+  toggleApproveLiteratureGrade: (studentId: string) => void;
+  gradeColumnNames: GradeColumnNames;
+  updateGradeColumnNames: (names: Partial<GradeColumnNames>) => void;
   clearAllGradesAndComments: () => void;
   clearStudentGradesAndComments: (studentId: string) => void;
   addParentMessage: (studentId: string, content: string) => void;
@@ -79,8 +84,38 @@ const STORAGE_CLASS_INFO_KEY = 'so_lien_lac_7c_class_info_v1';
 const STORAGE_STUDENT_ID_KEY = 'so_lien_lac_7c_current_id_v1';
 const STORAGE_ROLE_KEY = 'so_lien_lac_7c_role_v1';
 const STORAGE_TEACHER_AUTH_KEY = 'so_lien_lac_7c_teacher_auth_v1';
+const STORAGE_GRADE_COLUMNS_KEY = 'so_lien_lac_7c_grade_columns_v1';
 
 export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [gradeColumnNames, setGradeColumnNames] = useState<GradeColumnNames>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_GRADE_COLUMNS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Failed to load grade column names:', e);
+    }
+    // "Tên điểm để trống" -> mặc định để trống cho cô giáo tự đặt hoặc để trống
+    return {
+      oral: '',
+      test15m1: '',
+      test15m2: '',
+      periodTest: '',
+      midterm: '',
+      finalExam: '',
+    };
+  });
+
+  const updateGradeColumnNames = (names: Partial<GradeColumnNames>) => {
+    setGradeColumnNames((prev) => {
+      const updated = { ...prev, ...names };
+      try {
+        localStorage.setItem(STORAGE_GRADE_COLUMNS_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to save grade column names:', e);
+      }
+      return updated;
+    });
+  };
   const [isTeacherAuthenticated, setIsTeacherAuthenticated] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem(STORAGE_TEACHER_AUTH_KEY) === 'true';
@@ -137,7 +172,10 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const init = INITIAL_STUDENTS[idx] || INITIAL_STUDENTS.find((i) => i.id === s.id);
           return {
             ...s,
-            literatureGrades: s.literatureGrades || init?.literatureGrades || {
+            literatureGrades: s.literatureGrades ? {
+              ...s.literatureGrades,
+              isApproved: s.literatureGrades.isApproved ?? false,
+            } : init?.literatureGrades || {
               oral: null,
               test15m1: null,
               test15m2: null,
@@ -146,6 +184,7 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               finalExam: null,
               semesterAverage: null,
               averageScore: null,
+              isApproved: false,
               feedback: '',
               teacherRemarks: '',
               writingSkill: '',
@@ -734,6 +773,37 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  const batchApproveLiteratureGrades = (approved: boolean) => {
+    setStudents((prev) =>
+      prev.map((student) => {
+        const currentLit = student.literatureGrades || {};
+        return {
+          ...student,
+          literatureGrades: {
+            ...currentLit,
+            isApproved: approved,
+          },
+        };
+      })
+    );
+  };
+
+  const toggleApproveLiteratureGrade = (studentId: string) => {
+    setStudents((prev) =>
+      prev.map((student) => {
+        if (student.id !== studentId) return student;
+        const currentLit = student.literatureGrades || {};
+        return {
+          ...student,
+          literatureGrades: {
+            ...currentLit,
+            isApproved: !currentLit.isApproved,
+          },
+        };
+      })
+    );
+  };
+
   const clearAllGradesAndComments = () => {
     setStudents((prev) =>
       prev.map((student) => {
@@ -747,6 +817,7 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           semesterAverage: null,
           averageScore: null,
           isCustomAverage: false,
+          isApproved: false,
           feedback: '',
           teacherRemarks: '',
           writingSkill: '',
@@ -926,6 +997,10 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deleteLessonContent,
         updateLiteratureGrades,
         batchRecalculateLiteratureAverages,
+        batchApproveLiteratureGrades,
+        toggleApproveLiteratureGrade,
+        gradeColumnNames,
+        updateGradeColumnNames,
         clearAllGradesAndComments,
         clearStudentGradesAndComments,
         addParentMessage,

@@ -11,6 +11,7 @@ import {
   Clock,
   BookOpen,
   User,
+  Lock,
 } from 'lucide-react';
 
 type TabType = 'grades' | 'comments' | 'announcements' | 'messages';
@@ -24,6 +25,7 @@ export const ParentView: React.FC = () => {
     announcements,
     addParentMessage,
     classInfo,
+    gradeColumnNames,
   } = useClass();
 
   // 4 mục đơn giản theo đúng yêu cầu: Điểm, Nhận xét, Dặn dò & Thông báo, Hộp thư Ph & HS
@@ -159,196 +161,277 @@ export const ParentView: React.FC = () => {
         {/* ======================================================== */}
         {activeTab === 'grades' && (
           <div className="space-y-6 animate-in fade-in duration-150">
-            
-            {/* Header Card Môn Ngữ Văn */}
-            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
-                      Môn Ngữ Văn 7 • Học kì I
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium">Chương trình GDPT 2018</span>
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mt-1">
-                    Bảng điểm môn Ngữ Văn của con
-                  </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-                    Học sinh: <strong>{currentStudent.name}</strong> ({currentStudent.code}) • Giáo viên phụ trách: <strong>{classInfo.homeroomTeacher || 'Cô Vân Anh'}</strong>
-                  </p>
-                </div>
+            {(() => {
+              const isApproved = !!litGrades.isApproved;
 
-                <div className="flex items-center gap-2.5 self-start sm:self-auto bg-emerald-50 px-4 py-2.5 rounded-2xl border border-emerald-200/80">
-                  <div>
-                    <p className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">
-                      Điểm trung bình môn
-                    </p>
-                    <p className="text-2xl font-black text-emerald-900 leading-none mt-0.5">
-                      {litGrades.semesterAverage !== null && litGrades.semesterAverage !== undefined
-                        ? Number(litGrades.semesterAverage).toFixed(1)
-                        : litGrades.averageScore !== null && litGrades.averageScore !== undefined
-                        ? Number(litGrades.averageScore).toFixed(1)
-                        : '--'}
-                      <span className="text-xs font-normal text-emerald-700 ml-1">/ 10</span>
-                    </p>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-base shadow-xs">
-                    <GraduationCap className="w-5 h-5" />
-                  </div>
-                </div>
-              </div>
+              return (
+                <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs">
+                  {/* Header Card Môn Ngữ Văn */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md ${
+                          isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          Môn Ngữ Văn 7 • Học kì I
+                        </span>
+                        <span className="text-xs text-slate-500 font-medium">Chương trình GDPT 2018</span>
+                      </div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mt-1">
+                        Bảng điểm môn Ngữ Văn của con
+                      </h2>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                        Học sinh: <strong>{currentStudent.name}</strong> ({currentStudent.code}) • Giáo viên phụ trách: <strong>{classInfo.homeroomTeacher || 'Cô Vân Anh'}</strong>
+                      </p>
+                    </div>
 
-              {/* 3 Năng lực môn Ngữ Văn theo GDPT 2018 */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-5">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
-                    📖 Năng lực Đọc hiểu
-                  </span>
-                  <p className="text-sm font-bold text-slate-900 mt-1">
-                    {litGrades.readingSkill || litGrades.readingCompetency || (
-                      <span className="text-slate-400 font-normal">Chưa đánh giá</span>
+                    {isApproved ? (
+                      <div className="flex items-center gap-2.5 self-start sm:self-auto bg-emerald-50 px-4 py-2.5 rounded-2xl border border-emerald-200/80">
+                        <div>
+                          <p className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wider">
+                            Điểm trung bình môn
+                          </p>
+                          <p className="text-2xl font-black text-emerald-900 leading-none mt-0.5">
+                            {litGrades.semesterAverage !== null && litGrades.semesterAverage !== undefined
+                              ? Number(litGrades.semesterAverage).toFixed(1)
+                              : litGrades.averageScore !== null && litGrades.averageScore !== undefined
+                              ? Number(litGrades.averageScore).toFixed(1)
+                              : '--'}
+                            <span className="text-xs font-normal text-emerald-700 ml-1">/ 10</span>
+                          </p>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-base shadow-xs">
+                          <GraduationCap className="w-5 h-5" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5 self-start sm:self-auto bg-amber-50 px-4 py-2.5 rounded-2xl border border-amber-200">
+                        <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold">
+                          <Lock className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-amber-900">
+                            Chưa duyệt bảng điểm
+                          </p>
+                          <p className="text-[11px] text-amber-700">
+                            Đang chờ Cô giáo phê duyệt
+                          </p>
+                        </div>
+                      </div>
                     )}
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Nắm bắt thông điệp & biện pháp tu từ</p>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
-                    ✍️ Năng lực Viết văn
-                  </span>
-                  <p className="text-sm font-bold text-slate-900 mt-1">
-                    {litGrades.writingSkill || litGrades.writingCompetency || (
-                      <span className="text-slate-400 font-normal">Chưa đánh giá</span>
-                    )}
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Nghị luận & biểu cảm có lập luận tốt</p>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
-                    🗣️ Năng lực Nói & Nghe
-                  </span>
-                  <p className="text-sm font-bold text-slate-900 mt-1">
-                    {litGrades.speakingListeningCompetency || (
-                      <span className="text-slate-400 font-normal">Chưa đánh giá</span>
-                    )}
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Thuyết trình chủ đề nhóm rõ ràng</p>
-                </div>
-              </div>
-
-              {/* Bảng điểm chi tiết */}
-              <div className="mt-6 pt-5 border-t border-slate-100">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
-                  <BookOpen className="w-4 h-4 text-emerald-600" />
-                  Bảng điểm các bài kiểm tra chi tiết
-                </h3>
-
-                <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5">
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
-                    <span className="text-[11px] font-bold text-slate-500 block">Kiểm tra Miệng</span>
-                    <div className="flex items-center justify-center gap-1.5 mt-1">
-                      <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
-                        litGrades.oral !== undefined && litGrades.oral !== null
-                          ? 'text-slate-800 bg-white border-slate-200'
-                          : 'text-slate-400 bg-transparent border-transparent'
-                      }`}>
-                        {litGrades.oral !== undefined && litGrades.oral !== null ? litGrades.oral : '--'}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 1</span>
                   </div>
 
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
-                    <span className="text-[11px] font-bold text-slate-500 block">15 Phút (Lần 1)</span>
-                    <div className="flex items-center justify-center gap-1.5 mt-1">
-                      <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
-                        litGrades.test15m1 !== undefined && litGrades.test15m1 !== null
-                          ? 'text-slate-800 bg-white border-slate-200'
-                          : 'text-slate-400 bg-transparent border-transparent'
-                      }`}>
-                        {litGrades.test15m1 !== undefined && litGrades.test15m1 !== null ? litGrades.test15m1 : '--'}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 1</span>
-                  </div>
+                  {!isApproved ? (
+                    /* Trạng thái chưa duyệt: Tên điểm để trống, chờ Cô giáo duyệt mới hiện cho PH thấy */
+                    <div className="py-10 px-4 text-center max-w-xl mx-auto">
+                      <div className="w-16 h-16 rounded-3xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto mb-4 shadow-2xs">
+                        <Clock className="w-8 h-8 text-amber-600" />
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100/80 text-amber-800 text-xs font-bold mb-3 border border-amber-200">
+                        <Lock className="w-3.5 h-3.5" /> Bảng điểm đang trong quá trình chấm & cập nhật
+                      </div>
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                        Tên điểm và điểm số hiện đang để trống
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                        Cô Vân Anh đang chấm bài và hoàn thiện điểm môn Ngữ Văn cho lớp 7C. Điểm số và tên các cột kiểm tra chỉ được công bố sau khi Cô giáo chính thức phê duyệt.
+                      </p>
 
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
-                    <span className="text-[11px] font-bold text-slate-500 block">15 Phút (Lần 2)</span>
-                    <div className="flex items-center justify-center gap-1.5 mt-1">
-                      <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
-                        litGrades.test15m2 !== undefined && litGrades.test15m2 !== null
-                          ? 'text-slate-800 bg-white border-slate-200'
-                          : 'text-slate-400 bg-transparent border-transparent'
-                      }`}>
-                        {litGrades.test15m2 !== undefined && litGrades.test15m2 !== null ? litGrades.test15m2 : '--'}
-                      </span>
+                      <div className="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left">
+                        <div className="flex items-start gap-3">
+                          <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                            ✓
+                          </div>
+                          <div className="text-xs text-slate-600 leading-relaxed">
+                            <span className="font-bold text-slate-800">Quy định công bố:</span>{' '}
+                            Bảng điểm và nhận xét môn học sẽ tự động hiển thị ngay cho Phụ huynh và Học sinh sau khi Cô giáo bấm duyệt chính thức trên hệ thống sổ liên lạc.
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 1</span>
-                  </div>
-
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
-                    <span className="text-[11px] font-bold text-slate-500 block">1 Tiết (Định kì)</span>
-                    <div className="flex items-center justify-center gap-1.5 mt-1">
-                      <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
-                        litGrades.periodTest !== undefined && litGrades.periodTest !== null
-                          ? 'text-slate-800 bg-white border-slate-200'
-                          : 'text-slate-400 bg-transparent border-transparent'
-                      }`}>
-                        {litGrades.periodTest !== undefined && litGrades.periodTest !== null ? litGrades.periodTest : '--'}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 2</span>
-                  </div>
-
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
-                    <span className="text-[11px] font-bold text-slate-500 block">Thi Giữa kì</span>
-                    <div className="flex items-center justify-center gap-1.5 mt-1">
-                      <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
-                        litGrades.midterm !== undefined && litGrades.midterm !== null
-                          ? 'text-indigo-700 bg-white border-indigo-200'
-                          : 'text-slate-400 bg-transparent border-transparent'
-                      }`}>
-                        {litGrades.midterm !== undefined && litGrades.midterm !== null ? litGrades.midterm : '--'}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 2</span>
-                  </div>
-
-                  <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center col-span-2 sm:col-span-1">
-                    <span className="text-[11px] font-bold text-slate-500 block">Thi Cuối kì</span>
-                    <div className="flex items-center justify-center gap-1.5 mt-1">
-                      <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
-                        litGrades.finalExam !== undefined && litGrades.finalExam !== null
-                          ? 'text-emerald-700 bg-white border-emerald-200'
-                          : 'text-slate-400 bg-transparent border-transparent'
-                      }`}>
-                        {litGrades.finalExam !== undefined && litGrades.finalExam !== null ? litGrades.finalExam : '--'}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 3</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Lời nhận xét chuyên môn về điểm số */}
-              <div className="mt-5 p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200">
-                <div className="flex items-center gap-2 mb-1.5 text-emerald-900 font-bold text-xs sm:text-sm">
-                  <span>🖋️</span> Lời nhận xét chuyên môn của Cô Vân Anh:
-                </div>
-                <p className="text-xs sm:text-sm text-slate-800 leading-relaxed pl-3 border-l-2 border-emerald-600">
-                  {litGrades.feedback || litGrades.teacherRemarks ? (
-                    `"${litGrades.feedback || litGrades.teacherRemarks}"`
                   ) : (
-                    <span className="text-slate-400 not-italic">
-                      Cô Vân Anh đang trong quá trình theo dõi và sẽ cập nhật nhận xét điểm số cho con.
-                    </span>
+                    /* Trạng thái ĐÃ DUYỆT: Hiển thị đầy đủ bảng điểm cho Phụ huynh */
+                    <>
+                      {/* Trạng thái duyệt xác nhận */}
+                      <div className="mt-4 p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>Cô Vân Anh đã duyệt và công bố bảng điểm chính thức</span>
+                        </div>
+                        <span className="text-[11px] text-emerald-700 font-medium">Học kì I • Năm học 2026 - 2027</span>
+                      </div>
+
+                      {/* 3 Năng lực môn Ngữ Văn theo GDPT 2018 */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-5">
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                          <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+                            📖 Năng lực Đọc hiểu
+                          </span>
+                          <p className="text-sm font-bold text-slate-900 mt-1">
+                            {litGrades.readingSkill || litGrades.readingCompetency || (
+                              <span className="text-slate-400 font-normal">Chưa đánh giá</span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Nắm bắt thông điệp & biện pháp tu từ</p>
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                          <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+                            ✍️ Năng lực Viết văn
+                          </span>
+                          <p className="text-sm font-bold text-slate-900 mt-1">
+                            {litGrades.writingSkill || litGrades.writingCompetency || (
+                              <span className="text-slate-400 font-normal">Chưa đánh giá</span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Nghị luận & biểu cảm có lập luận tốt</p>
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                          <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+                            🗣️ Năng lực Nói & Nghe
+                          </span>
+                          <p className="text-sm font-bold text-slate-900 mt-1">
+                            {litGrades.speakingListeningCompetency || (
+                              <span className="text-slate-400 font-normal">Chưa đánh giá</span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Thuyết trình chủ đề nhóm rõ ràng</p>
+                        </div>
+                      </div>
+
+                      {/* Bảng điểm chi tiết với tên điểm tùy chỉnh hoặc để trống */}
+                      <div className="mt-6 pt-5 border-t border-slate-100">
+                        <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-3">
+                          <BookOpen className="w-4 h-4 text-emerald-600" />
+                          Bảng điểm các bài kiểm tra chi tiết
+                        </h3>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5">
+                          {/* Cột 1 */}
+                          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
+                            <span className="text-[11px] font-bold text-slate-600 block truncate" title={gradeColumnNames.oral || 'Để trống'}>
+                              {gradeColumnNames.oral?.trim() ? gradeColumnNames.oral : <span className="italic text-slate-400 font-normal">[Để trống]</span>}
+                            </span>
+                            <div className="flex items-center justify-center gap-1.5 mt-1">
+                              <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
+                                litGrades.oral !== undefined && litGrades.oral !== null
+                                  ? 'text-slate-800 bg-white border-slate-200'
+                                  : 'text-slate-400 bg-transparent border-transparent'
+                              }`}>
+                                {litGrades.oral !== undefined && litGrades.oral !== null ? litGrades.oral : '--'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 1</span>
+                          </div>
+
+                          {/* Cột 2 */}
+                          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
+                            <span className="text-[11px] font-bold text-slate-600 block truncate" title={gradeColumnNames.test15m1 || 'Để trống'}>
+                              {gradeColumnNames.test15m1?.trim() ? gradeColumnNames.test15m1 : <span className="italic text-slate-400 font-normal">[Để trống]</span>}
+                            </span>
+                            <div className="flex items-center justify-center gap-1.5 mt-1">
+                              <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
+                                litGrades.test15m1 !== undefined && litGrades.test15m1 !== null
+                                  ? 'text-slate-800 bg-white border-slate-200'
+                                  : 'text-slate-400 bg-transparent border-transparent'
+                              }`}>
+                                {litGrades.test15m1 !== undefined && litGrades.test15m1 !== null ? litGrades.test15m1 : '--'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 1</span>
+                          </div>
+
+                          {/* Cột 3 */}
+                          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
+                            <span className="text-[11px] font-bold text-slate-600 block truncate" title={gradeColumnNames.test15m2 || 'Để trống'}>
+                              {gradeColumnNames.test15m2?.trim() ? gradeColumnNames.test15m2 : <span className="italic text-slate-400 font-normal">[Để trống]</span>}
+                            </span>
+                            <div className="flex items-center justify-center gap-1.5 mt-1">
+                              <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
+                                litGrades.test15m2 !== undefined && litGrades.test15m2 !== null
+                                  ? 'text-slate-800 bg-white border-slate-200'
+                                  : 'text-slate-400 bg-transparent border-transparent'
+                              }`}>
+                                {litGrades.test15m2 !== undefined && litGrades.test15m2 !== null ? litGrades.test15m2 : '--'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 1</span>
+                          </div>
+
+                          {/* Cột 4 */}
+                          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
+                            <span className="text-[11px] font-bold text-slate-600 block truncate" title={gradeColumnNames.periodTest || 'Để trống'}>
+                              {gradeColumnNames.periodTest?.trim() ? gradeColumnNames.periodTest : <span className="italic text-slate-400 font-normal">[Để trống]</span>}
+                            </span>
+                            <div className="flex items-center justify-center gap-1.5 mt-1">
+                              <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
+                                litGrades.periodTest !== undefined && litGrades.periodTest !== null
+                                  ? 'text-slate-800 bg-white border-slate-200'
+                                  : 'text-slate-400 bg-transparent border-transparent'
+                              }`}>
+                                {litGrades.periodTest !== undefined && litGrades.periodTest !== null ? litGrades.periodTest : '--'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 2</span>
+                          </div>
+
+                          {/* Cột 5 */}
+                          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
+                            <span className="text-[11px] font-bold text-slate-600 block truncate" title={gradeColumnNames.midterm || 'Để trống'}>
+                              {gradeColumnNames.midterm?.trim() ? gradeColumnNames.midterm : <span className="italic text-slate-400 font-normal">[Để trống]</span>}
+                            </span>
+                            <div className="flex items-center justify-center gap-1.5 mt-1">
+                              <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
+                                litGrades.midterm !== undefined && litGrades.midterm !== null
+                                  ? 'text-indigo-700 bg-white border-indigo-200'
+                                  : 'text-slate-400 bg-transparent border-transparent'
+                              }`}>
+                                {litGrades.midterm !== undefined && litGrades.midterm !== null ? litGrades.midterm : '--'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 2</span>
+                          </div>
+
+                          {/* Cột 6 */}
+                          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center col-span-2 sm:col-span-1">
+                            <span className="text-[11px] font-bold text-slate-600 block truncate" title={gradeColumnNames.finalExam || 'Để trống'}>
+                              {gradeColumnNames.finalExam?.trim() ? gradeColumnNames.finalExam : <span className="italic text-slate-400 font-normal">[Để trống]</span>}
+                            </span>
+                            <div className="flex items-center justify-center gap-1.5 mt-1">
+                              <span className={`text-base font-extrabold px-2 py-0.5 rounded-lg border ${
+                                litGrades.finalExam !== undefined && litGrades.finalExam !== null
+                                  ? 'text-emerald-700 bg-white border-emerald-200'
+                                  : 'text-slate-400 bg-transparent border-transparent'
+                              }`}>
+                                {litGrades.finalExam !== undefined && litGrades.finalExam !== null ? litGrades.finalExam : '--'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 mt-1 block">Hệ số 3</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Lời nhận xét chuyên môn về điểm số */}
+                      <div className="mt-5 p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+                        <div className="flex items-center gap-2 mb-1.5 text-emerald-900 font-bold text-xs sm:text-sm">
+                          <span>🖋️</span> Lời nhận xét chuyên môn của Cô Vân Anh:
+                        </div>
+                        <p className="text-xs sm:text-sm text-slate-800 leading-relaxed pl-3 border-l-2 border-emerald-600">
+                          {litGrades.feedback || litGrades.teacherRemarks ? (
+                            `"${litGrades.feedback || litGrades.teacherRemarks}"`
+                          ) : (
+                            <span className="text-slate-400 not-italic">
+                              Cô Vân Anh đang trong quá trình theo dõi và sẽ cập nhật nhận xét điểm số cho con.
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </>
                   )}
-                </p>
-              </div>
-
-            </div>
-
+                </div>
+              );
+            })()}
           </div>
         )}
 

@@ -17,6 +17,9 @@ import {
   SlidersHorizontal,
   Check,
   Zap,
+  Clock,
+  Lock,
+  Tag,
 } from 'lucide-react';
 
 export const LiteratureGradebook: React.FC = () => {
@@ -26,10 +29,18 @@ export const LiteratureGradebook: React.FC = () => {
     batchRecalculateLiteratureAverages,
     clearAllGradesAndComments,
     classInfo,
+    gradeColumnNames,
+    updateGradeColumnNames,
+    toggleApproveLiteratureGrade,
+    batchApproveLiteratureGrades,
   } = useClass();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [gradeFilter, setGradeFilter] = useState<'all' | 'excellent' | 'good' | 'average' | 'needs_attention'>('all');
+
+  // Column names customization modal state
+  const [showColumnNamesModal, setShowColumnNamesModal] = useState(false);
+  const [tempColNames, setTempColNames] = useState(gradeColumnNames);
 
   // Modal edit single student detail
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -41,6 +52,7 @@ export const LiteratureGradebook: React.FC = () => {
   const [formFinalExam, setFormFinalExam] = useState<string>('');
   const [formAverage, setFormAverage] = useState<string>('');
   const [formIsCustomAverage, setFormIsCustomAverage] = useState<boolean>(false);
+  const [formIsApproved, setFormIsApproved] = useState<boolean>(false);
   const [formFeedback, setFormFeedback] = useState<string>('');
   const [formWritingSkill, setFormWritingSkill] = useState<string>('Tốt');
   const [formReadingSkill, setFormReadingSkill] = useState<string>('Nắm chắc ý chính');
@@ -65,6 +77,7 @@ export const LiteratureGradebook: React.FC = () => {
     setFormFinalExam(g.finalExam !== undefined && g.finalExam !== null ? String(g.finalExam) : '');
     setFormAverage(g.semesterAverage !== undefined && g.semesterAverage !== null ? String(g.semesterAverage) : '');
     setFormIsCustomAverage(!!g.isCustomAverage);
+    setFormIsApproved(!!g.isApproved);
     setFormFeedback(g.feedback || g.teacherRemarks || '');
     setFormWritingSkill(g.writingSkill || g.writingCompetency || 'Tốt');
     setFormReadingSkill(g.readingSkill || g.readingCompetency || 'Nắm chắc ý chính');

@@ -66,6 +66,15 @@ export interface WeeklyEvaluation {
   isApproved: boolean; // Cô giáo đã duyệt hay chưa
 }
 
+export interface GradeColumnNames {
+  oral: string; // Tên điểm 1 (hệ số 1)
+  test15m1: string; // Tên điểm 2 (hệ số 1)
+  test15m2: string; // Tên điểm 3 (hệ số 1)
+  periodTest: string; // Tên điểm 4 (hệ số 2)
+  midterm: string; // Tên điểm 5 (hệ số 2)
+  finalExam: string; // Tên điểm 6 (hệ số 3)
+}
+
 export interface LiteratureGradeRecord {
   oral?: number | null; // Điểm miệng (hệ số 1)
   test15m1?: number | null; // Điểm 15 phút đợt 1
@@ -75,6 +84,7 @@ export interface LiteratureGradeRecord {
   finalExam?: number | null; // Điểm thi cuối kỳ (hệ số 3)
   semesterAverage?: number | null; // ĐTB môn Ngữ Văn
   isCustomAverage?: boolean; // Cô tự tay điều chỉnh ĐTB riêng biệt
+  isApproved?: boolean; // Cô giáo duyệt mới hiện cho PH thấy
   feedback?: string; // Lời phê chuyên môn Ngữ Văn của Cô Vân Anh
   writingSkill?: string; // Kỹ năng viết đoạn/bài
   readingSkill?: string; // Kỹ năng đọc - hiểu & cảm thụ
