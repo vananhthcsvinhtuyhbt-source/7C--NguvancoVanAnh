@@ -24,15 +24,29 @@ import {
   X,
   ExternalLink,
   BookOpen,
+  Settings,
+  CalendarPlus,
+  Sliders,
+  UserCog,
+  Lock,
 } from 'lucide-react';
 import { LiteratureGradebook } from './LiteratureGradebook';
 import { LiteratureLessonManager } from './LiteratureLessonManager';
+import { AddWeekModal } from './AddWeekModal';
+import { EditWeekModal } from './EditWeekModal';
+import { ClassInfoModal } from './ClassInfoModal';
+import { EditStudentModal } from './EditStudentModal';
+import { EvaluationComposerModal } from './EvaluationComposerModal';
 
 export const TeacherView: React.FC = () => {
   const {
     students,
+    weeks,
     selectedWeek,
     setSelectedWeek,
+    addWeek,
+    updateWeekInfo,
+    deleteWeek,
     updateEvaluation,
     batchApproveEvaluations,
     announcements,
@@ -42,8 +56,11 @@ export const TeacherView: React.FC = () => {
     toggleNeedsAttention,
     addBadge,
     classInfo,
+    updateClassInfo,
+    updateStudentInfo,
     setCurrentStudentId,
     setRole,
+    lockTeacher,
   } = useClass();
 
   // Admin Active Tab
@@ -55,28 +72,12 @@ export const TeacherView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'needs_attention' | 'unapproved' | 'approved'>('all');
 
-  // Fast Comment Composer Modal State
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [selectedAttitudeTags, setSelectedAttitudeTags] = useState<string[]>([]);
-  const [selectedStudyTags, setSelectedStudyTags] = useState<string[]>([]);
-  const [selectedCoopTags, setSelectedCoopTags] = useState<string[]>([]);
-  const [selectedDisciplineTags, setSelectedDisciplineTags] = useState<string[]>([]);
-  const [customStrengths, setCustomStrengths] = useState('');
-  const [customImprovements, setCustomImprovements] = useState('');
-  const [customTeacherComment, setCustomTeacherComment] = useState('');
-  const [customParentTip, setCustomParentTip] = useState('');
-  const [customAcademicScore, setCustomAcademicScore] = useState(4);
-  const [customDisciplineScore, setCustomDisciplineScore] = useState(5);
-  const [customProgressStars, setCustomProgressStars] = useState(4);
-
-  // Literature evaluation in modal
-  const [customLitScore, setCustomLitScore] = useState<string>('');
-  const [customLitFeedback, setCustomLitFeedback] = useState<string>('');
-  const [customLitLesson, setCustomLitLesson] = useState<string>('');
-
-  // AI Generation State
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
-  const [aiSuccessBadge, setAiSuccessBadge] = useState(false);
+  // Dynamic Week & Class & Student & Evaluation Modals
+  const [showAddWeekModal, setShowAddWeekModal] = useState(false);
+  const [showEditWeekModal, setShowEditWeekModal] = useState(false);
+  const [showClassInfoModal, setShowClassInfoModal] = useState(false);
+  const [editingStudentProfile, setEditingStudentProfile] = useState<Student | null>(null);
+  const [editingStudentEvaluation, setEditingStudentEvaluation] = useState<Student | null>(null);
 
   // Announcement Composer Modal
   const [showAnnounceModal, setShowAnnounceModal] = useState(false);
@@ -113,122 +114,6 @@ export const TeacherView: React.FC = () => {
     if (filterType === 'approved') return s.weeklyEvaluations[selectedWeek]?.isApproved;
     return true;
   });
-
-  // Open Fast Comment Composer for a student
-  const openComposer = (student: Student) => {
-    const currentEval: Partial<WeeklyEvaluation> = student.weeklyEvaluations[selectedWeek] || {
-      academicScore: 4,
-      disciplineScore: 5,
-      progressStars: 4,
-      strengths: '',
-      improvements: '',
-      teacherComment: '',
-      parentTip: '',
-    };
-
-    setEditingStudent(student);
-    setSelectedAttitudeTags(['Tích cực, hăng hái']);
-    setSelectedStudyTags(['Nắm chắc kiến thức bài học']);
-    setSelectedCoopTags(['Hợp tác nhóm rất tốt, trách nhiệm']);
-    setSelectedDisciplineTags(['Nề nếp học tập rất chuẩn mực']);
-    setCustomStrengths(currentEval.strengths || 'Tích cực tham gia xây dựng bài');
-    setCustomImprovements(currentEval.improvements || 'Cần tự tin hơn khi trình bày');
-    setCustomTeacherComment(currentEval.teacherComment || `${student.name} có ý thức học tập tốt, ngoan ngoãn và tiến bộ.`);
-    setCustomParentTip(currentEval.parentTip || 'Gia đình tiếp tục động viên và lắng nghe con chia sẻ về bài học trên lớp.');
-    setCustomAcademicScore(currentEval.academicScore || 4);
-    setCustomDisciplineScore(currentEval.disciplineScore || 5);
-    setCustomProgressStars(currentEval.progressStars || 4);
-
-    // Literature weekly evaluations
-    const litWeekly = currentEval.literatureWeekly || {};
-    setCustomLitScore(
-      litWeekly.score !== undefined && litWeekly.score !== null
-        ? String(litWeekly.score)
-        : student.literatureGrades?.periodTest
-        ? String(student.literatureGrades.periodTest)
-        : ''
-    );
-    setCustomLitFeedback(litWeekly.feedback || student.literatureGrades?.feedback || '');
-    setCustomLitLesson(litWeekly.lessonTitle || 'Gặp lá cơm nếp (Thanh Thảo) & Viết đoạn văn');
-  };
-
-  // Combine checked tags into comment
-  const handleAutoCombineFromTags = () => {
-    if (!editingStudent) return;
-    const attitudes = selectedAttitudeTags.join(', ');
-    const studies = selectedStudyTags.join(', ');
-    const disciplines = selectedDisciplineTags.join(', ');
-
-    const combined = `Em ${editingStudent.name} tuần này có thái độ ${attitudes.toLowerCase() || 'tích cực'}. Về học tập, em ${studies.toLowerCase() || 'nắm chắc bài'}. Nề nếp: ${disciplines.toLowerCase() || 'rất tốt'}. Điểm sáng: ${customStrengths || 'chăm chỉ'}. Cô lưu ý em ${customImprovements || 'cần mạnh dạn hơn'}.`;
-    const parentTipCombined = `Gợi ý cha mẹ: Tuần này con đang cần rèn luyện ${customImprovements || 'sự tự tin'}. Cha mẹ hãy dành 10 phút mỗi tối để khích lệ con trình bày lại một điều con học được hôm nay.`;
-
-    setCustomTeacherComment(combined);
-    setCustomParentTip(parentTipCombined);
-  };
-
-  // Call Gemini AI on backend to polish and individualize comment
-  const handleGenerateAiComment = async () => {
-    if (!editingStudent) return;
-    setIsGeneratingAi(true);
-    setAiSuccessBadge(false);
-
-    try {
-      const response = await fetch('/api/gemini/generate-comment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentName: editingStudent.name,
-          currentWeek: `Tuần ${selectedWeek}`,
-          attitudeTags: selectedAttitudeTags,
-          studyTags: selectedStudyTags,
-          strengths: customStrengths,
-          improvements: customImprovements,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.comment) {
-        setCustomTeacherComment(data.comment);
-      }
-      if (data.parentTip) {
-        setCustomParentTip(data.parentTip);
-      }
-      setAiSuccessBadge(true);
-      setTimeout(() => setAiSuccessBadge(false), 4000);
-    } catch (err) {
-      console.error('Error generating comment:', err);
-    } finally {
-      setIsGeneratingAi(false);
-    }
-  };
-
-  // Save changes to student's weekly evaluation
-  const handleSaveComposer = () => {
-    if (!editingStudent) return;
-
-    updateEvaluation(editingStudent.id, selectedWeek, {
-      academicScore: customAcademicScore,
-      academic: customAcademicScore === 5 ? 'Xuất sắc' : customAcademicScore === 4 ? 'Tốt' : 'Khá tốt',
-      disciplineScore: customDisciplineScore,
-      discipline: customDisciplineScore === 5 ? 'Tốt' : 'Khá tốt',
-      progressStars: customProgressStars,
-      progressTrend: customProgressStars >= 4 ? 'up' : 'steady',
-      strengths: customStrengths,
-      improvements: customImprovements,
-      teacherComment: customTeacherComment,
-      parentTip: customParentTip,
-      isApproved: true,
-      literatureWeekly: {
-        lessonTitle: customLitLesson || 'Văn bản Ngữ Văn tuần này',
-        score: customLitScore !== '' ? parseFloat(customLitScore) : undefined,
-        feedback: customLitFeedback.trim() || undefined,
-        writingSkill: 'Tốt',
-        readingSkill: 'Nắm chắc kiến thức',
-      },
-    });
-
-    setEditingStudent(null);
-  };
 
   // Submit announcement
   const handleAddAnnouncementSubmit = (e: React.FormEvent) => {
@@ -270,6 +155,47 @@ export const TeacherView: React.FC = () => {
     setAwardingBadgeStudent(null);
   };
 
+  // Quick inline cycle adjustments for evaluations
+  const handleQuickCycleAcademic = (studentId: string, currentScore: number = 4) => {
+    const scoreMap: Record<number, { score: number; label: 'Xuất sắc' | 'Tốt' | 'Khá tốt' | 'Cần cố gắng' }> = {
+      5: { score: 4, label: 'Tốt' },
+      4: { score: 3, label: 'Khá tốt' },
+      3: { score: 2, label: 'Cần cố gắng' },
+      2: { score: 5, label: 'Xuất sắc' },
+    };
+    const next = scoreMap[currentScore] || { score: 5, label: 'Xuất sắc' };
+    updateEvaluation(studentId, selectedWeek, {
+      academicScore: next.score,
+      academic: next.label,
+    });
+  };
+
+  const handleQuickCycleDiscipline = (studentId: string, currentScore: number = 5) => {
+    const scoreMap: Record<number, { score: number; label: 'Tốt' | 'Khá tốt' | 'Cần nhắc nhở' }> = {
+      5: { score: 4, label: 'Khá tốt' },
+      4: { score: 3, label: 'Cần nhắc nhở' },
+      3: { score: 5, label: 'Tốt' },
+    };
+    const next = scoreMap[currentScore] || { score: 5, label: 'Tốt' };
+    updateEvaluation(studentId, selectedWeek, {
+      disciplineScore: next.score,
+      discipline: next.label,
+    });
+  };
+
+  const handleQuickToggleTrend = (studentId: string, currentTrend?: string) => {
+    const nextTrend: 'up' | 'steady' | 'down' = currentTrend === 'up' ? 'steady' : currentTrend === 'steady' ? 'down' : 'up';
+    updateEvaluation(studentId, selectedWeek, {
+      progressTrend: nextTrend,
+    });
+  };
+
+  const handleQuickToggleApproval = (studentId: string, currentApproval?: boolean) => {
+    updateEvaluation(studentId, selectedWeek, {
+      isApproved: !currentApproval,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/70 pb-20 font-sans text-slate-800">
       
@@ -281,12 +207,12 @@ export const TeacherView: React.FC = () => {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
-                  <span>🌸</span> 7C - HỌC VĂN CÙNG CÔ VÂN ANH
+                  <span>🌸</span> 7C - NGỮ VĂN
                 </span>
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                   Môn Ngữ Văn 7 📖
                 </span>
-                <span className="text-xs text-slate-500 font-medium">Năm học 2024 - 2025 ✨</span>
+                <span className="text-xs text-slate-500 font-medium">{classInfo.academicYear || 'Năm học 2026 - 2027'} ✨</span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1.5 flex items-center gap-2">
                 <span>Cô Vân Anh</span>
@@ -307,6 +233,24 @@ export const TeacherView: React.FC = () => {
 
             {/* Quick Actions */}
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                id="btn-lock-teacher"
+                onClick={lockTeacher}
+                className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs sm:text-sm font-semibold flex items-center gap-1.5 border border-rose-200 shadow-xs transition-colors"
+                title="Khóa quyền chỉnh sửa và quay lại Góc Ba Mẹ"
+              >
+                <Lock className="w-4 h-4 text-rose-600" /> Khóa quyền sửa
+              </button>
+
+              <button
+                id="btn-settings-class"
+                onClick={() => setShowClassInfoModal(true)}
+                className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold flex items-center gap-1.5 border border-slate-300 shadow-xs transition-colors"
+                title="Tùy chỉnh thông tin lớp học và giáo viên"
+              >
+                <Settings className="w-4 h-4 text-slate-600" /> Cài đặt lớp & GV
+              </button>
+
               <button
                 id="btn-batch-approve"
                 onClick={() => batchApproveEvaluations(selectedWeek)}
@@ -449,25 +393,52 @@ export const TeacherView: React.FC = () => {
 
           {/* Week Selector Bar - When activeAdminTab === 'evaluations' */}
           {activeAdminTab === 'evaluations' && (
-            <div className="flex items-center justify-between gap-4 mt-4 pt-4 border-t border-slate-100 overflow-x-auto">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-slate-100">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap">
-                  Chọn tuần đánh giá:
+                  Tuần đánh giá:
                 </span>
-                <div className="flex items-center gap-1.5">
-                  {[1, 2, 3, 4].map((w) => (
-                    <button
-                      key={w}
-                      onClick={() => setSelectedWeek(w)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        selectedWeek === w
-                          ? 'bg-indigo-600 text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      Tuần {w} {w === 4 ? '⭐ (Hiện tại)' : ''}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {weeks.map((wInfo) => {
+                    const isSelected = selectedWeek === wInfo.week;
+                    const isCurrent = wInfo.isCurrent || wInfo.week === classInfo.currentWeek;
+                    return (
+                      <button
+                        key={wInfo.week}
+                        onClick={() => setSelectedWeek(wInfo.week)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        }`}
+                      >
+                        <span>{wInfo.title || `Tuần ${wInfo.week}`}</span>
+                        {isCurrent && <span className="text-amber-300">⭐</span>}
+                      </button>
+                    );
+                  })}
+
+                  {/* Button: Cô giáo tự thêm tuần mới */}
+                  <button
+                    id="btn-add-week-modal"
+                    onClick={() => setShowAddWeekModal(true)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors flex items-center gap-1 shadow-2xs"
+                    title="Cô giáo thêm tuần đánh giá mới cho lớp"
+                  >
+                    <CalendarPlus className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>+ Thêm tuần</span>
+                  </button>
+
+                  {/* Button: Chỉnh sửa thông tin tuần đang chọn */}
+                  <button
+                    id="btn-edit-week-modal"
+                    onClick={() => setShowEditWeekModal(true)}
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors flex items-center gap-1"
+                    title={`Chỉnh sửa tiêu đề, thời gian, bài trọng tâm hoặc xóa Tuần ${selectedWeek}`}
+                  >
+                    <Sliders className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Sửa tuần {selectedWeek}</span>
+                  </button>
                 </div>
               </div>
 
@@ -606,69 +577,110 @@ export const TeacherView: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Học tập */}
+                        {/* Học tập - Click to cycle or adjust */}
                         <td className="py-3 px-4 text-center">
-                          <div className="inline-flex flex-col items-center">
-                            <span className="text-amber-500 font-bold text-xs">
+                          <button
+                            type="button"
+                            onClick={() => handleQuickCycleAcademic(s.id, ev?.academicScore || 4)}
+                            className="inline-flex flex-col items-center p-1.5 rounded-xl hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-colors cursor-pointer group"
+                            title="Bấm để đổi nhanh số sao & mức học tập (Xuất sắc -> Tốt -> Khá tốt -> Cần cố gắng)"
+                          >
+                            <span className="text-amber-500 font-bold text-xs group-hover:scale-110 transition-transform">
                               {'★'.repeat(ev?.academicScore || 4)}
                             </span>
-                            <span className="text-[10px] text-slate-500 mt-0.5">{ev?.academic || 'Tốt'}</span>
-                          </div>
+                            <span className="text-[10px] text-slate-600 font-semibold mt-0.5">{ev?.academic || 'Tốt'}</span>
+                          </button>
                         </td>
 
-                        {/* Nề nếp */}
+                        {/* Nề nếp - Click to cycle */}
                         <td className="py-3 px-4 text-center">
-                          <div className="inline-flex flex-col items-center">
-                            <span className="text-amber-500 font-bold text-xs">
+                          <button
+                            type="button"
+                            onClick={() => handleQuickCycleDiscipline(s.id, ev?.disciplineScore || 5)}
+                            className="inline-flex flex-col items-center p-1.5 rounded-xl hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-colors cursor-pointer group"
+                            title="Bấm để đổi nhanh nề nếp (Tốt -> Khá tốt -> Cần nhắc nhở)"
+                          >
+                            <span className="text-amber-500 font-bold text-xs group-hover:scale-110 transition-transform">
                               {'★'.repeat(ev?.disciplineScore || 5)}
                             </span>
-                            <span className="text-[10px] text-slate-500 mt-0.5">{ev?.discipline || 'Tốt'}</span>
-                          </div>
+                            <span className="text-[10px] text-slate-600 font-semibold mt-0.5">{ev?.discipline || 'Tốt'}</span>
+                          </button>
                         </td>
 
-                        {/* Tiến bộ (↑ / →) */}
+                        {/* Tiến bộ (↑ / → / ↓) - Click to cycle */}
                         <td className="py-3 px-4 text-center">
-                          <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-bold ${
-                            ev?.progressTrend === 'up'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-slate-100 text-slate-700'
-                          }`}>
-                            {ev?.progressTrend === 'up' ? '↑ Tiến bộ' : '→ Ổn định'}
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickToggleTrend(s.id, ev?.progressTrend)}
+                            className={`inline-flex items-center gap-0.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all cursor-pointer shadow-2xs hover:scale-105 ${
+                              ev?.progressTrend === 'up'
+                                ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                                : ev?.progressTrend === 'down'
+                                ? 'bg-rose-100 text-rose-800 hover:bg-rose-200'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                            }`}
+                            title="Bấm để chuyển nhanh: ↑ Tiến bộ / → Ổn định / ↓ Cần cố gắng"
+                          >
+                            {ev?.progressTrend === 'up' ? '↑ Tiến bộ' : ev?.progressTrend === 'down' ? '↓ Cần cố gắng' : '→ Ổn định'}
+                          </button>
                         </td>
 
-                        {/* Status (Duyệt hay chưa) */}
+                        {/* Status (Duyệt hay chưa) - Click to toggle */}
                         <td className="py-3 px-4 text-center">
-                          {isApproved ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3" /> Đã gửi
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                              ✏️ Chờ duyệt
-                            </span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleQuickToggleApproval(s.id, isApproved)}
+                            className="inline-flex items-center gap-1 cursor-pointer transition-all hover:scale-105"
+                            title="Bấm để chuyển trạng thái: Đã gửi phụ huynh <-> Chờ duyệt"
+                          >
+                            {isApproved ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs hover:bg-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Đã gửi
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shadow-2xs hover:bg-amber-200">
+                                ✏️ Chờ duyệt
+                              </span>
+                            )}
+                          </button>
                         </td>
 
                         {/* Snippet Comment */}
                         <td className="py-3 px-4 max-w-xs">
-                          <p className="text-xs text-slate-600 truncate" title={ev?.teacherComment}>
-                            {ev?.teacherComment || 'Chưa nhập nhận xét...'}
-                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setEditingStudentEvaluation(s)}
+                            className="text-left w-full group cursor-pointer"
+                            title="Bấm để mở trình biên soạn nhận xét chi tiết"
+                          >
+                            <p className="text-xs text-slate-600 truncate group-hover:text-indigo-700 group-hover:underline">
+                              {ev?.teacherComment || 'Chưa nhập nhận xét...'}
+                            </p>
+                          </button>
                         </td>
 
                         {/* Actions */}
                         <td className="py-3 px-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
                             
-                            {/* Soạn nhận xét nhanh / Edit */}
+                            {/* Soạn / Điều chỉnh mọi mục nhận xét & điểm */}
                             <button
                               id={`edit-comment-${s.id}`}
-                              onClick={() => openComposer(s)}
-                              className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition-colors flex items-center gap-1"
-                              title="Soạn nhận xét bằng Ngân hàng mẫu & AI"
+                              onClick={() => setEditingStudentEvaluation(s)}
+                              className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition-all flex items-center gap-1.5 shadow-2xs border border-indigo-200"
+                              title="Cô Vân Anh điều chỉnh mọi mục: Thang điểm 5 tiêu chí, Môn Ngữ Văn, Nhận xét, Trợ lý AI, Gia đình..."
                             >
-                              <Edit3 className="w-3.5 h-3.5" /> Nhận xét
+                              <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+                              <span>Sửa mọi mục</span>
+                            </button>
+
+                            {/* Chỉnh sửa hồ sơ học sinh */}
+                            <button
+                              onClick={() => setEditingStudentProfile(s)}
+                              className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 transition-colors"
+                              title="Chỉnh sửa thông tin học sinh (Họ tên, SĐT phụ huynh, mục tiêu...)"
+                            >
+                              <UserCog className="w-4 h-4" />
                             </button>
 
                             {/* Award badge */}
@@ -870,332 +882,64 @@ export const TeacherView: React.FC = () => {
       )}
 
       {/* ======================================================== */}
-      {/* MODAL: NGÂN HÀNG NHẬN XÉT & TRỢ LÝ AI SOẠN SIÊU TỐC       */}
+      {/* MODAL 1: CÔ GIÁO TỰ THÊM TUẦN MỚI                       */}
       {/* ======================================================== */}
-      {editingStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-in fade-in">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-8 max-h-[90vh] flex flex-col">
-            
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-5 text-white flex items-center justify-between shrink-0">
-              <div>
-                <span className="text-xs uppercase tracking-wider text-indigo-100 font-semibold font-mono">
-                  Mã {editingStudent.code} • Tuần {selectedWeek}
-                </span>
-                <h3 className="text-xl font-bold tracking-tight mt-0.5">
-                  Soạn nhận xét cho em: {editingStudent.name}
-                </h3>
-              </div>
-              <button
-                onClick={() => setEditingStudent(null)}
-                className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <AddWeekModal
+        isOpen={showAddWeekModal}
+        onClose={() => setShowAddWeekModal(false)}
+        weeks={weeks}
+        onAddWeek={addWeek}
+      />
 
-            {/* Modal Scrollable Body */}
-            <div className="p-6 overflow-y-auto space-y-5 flex-1 text-xs sm:text-sm">
-              
-              {/* 1. Quick Star Scoring */}
-              <div className="grid grid-cols-3 gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Học tập:</label>
-                  <select
-                    value={customAcademicScore}
-                    onChange={(e) => setCustomAcademicScore(Number(e.target.value))}
-                    className="w-full p-2 text-xs bg-white border border-slate-300 rounded-lg"
-                  >
-                    <option value={5}>5 sao (Xuất sắc)</option>
-                    <option value={4}>4 sao (Tốt)</option>
-                    <option value={3}>3 sao (Khá tốt)</option>
-                    <option value={2}>2 sao (Cần cố gắng)</option>
-                  </select>
-                </div>
+      {/* ======================================================== */}
+      {/* MODAL 2: ĐIỀU CHỈNH THÔNG TIN TUẦN / XÓA TUẦN           */}
+      {/* ======================================================== */}
+      <EditWeekModal
+        isOpen={showEditWeekModal}
+        onClose={() => setShowEditWeekModal(false)}
+        weekInfo={weeks.find((w) => w.week === selectedWeek)}
+        canDelete={weeks.length > 1}
+        onUpdateWeek={updateWeekInfo}
+        onDeleteWeek={deleteWeek}
+      />
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Nề nếp:</label>
-                  <select
-                    value={customDisciplineScore}
-                    onChange={(e) => setCustomDisciplineScore(Number(e.target.value))}
-                    className="w-full p-2 text-xs bg-white border border-slate-300 rounded-lg"
-                  >
-                    <option value={5}>5 sao (Tốt)</option>
-                    <option value={4}>4 sao (Khá tốt)</option>
-                    <option value={3}>3 sao (Cần nhắc nhở)</option>
-                  </select>
-                </div>
+      {/* ======================================================== */}
+      {/* MODAL 3: CÀI ĐẶT THÔNG TIN LỚP & GIÁO VIÊN              */}
+      {/* ======================================================== */}
+      <ClassInfoModal
+        isOpen={showClassInfoModal}
+        onClose={() => setShowClassInfoModal(false)}
+        classInfo={classInfo}
+        onUpdateClassInfo={updateClassInfo}
+      />
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Tiến bộ:</label>
-                  <select
-                    value={customProgressStars}
-                    onChange={(e) => setCustomProgressStars(Number(e.target.value))}
-                    className="w-full p-2 text-xs bg-white border border-slate-300 rounded-lg"
-                  >
-                    <option value={5}>5 sao (Tiến bộ vượt bậc)</option>
-                    <option value={4}>4 sao (Tiến bộ rõ rệt)</option>
-                    <option value={3}>3 sao (Duy trì ổn định)</option>
-                  </select>
-                </div>
-              </div>
+      {/* ======================================================== */}
+      {/* MODAL 4: CHỈNH SỬA HỒ SƠ HỌC SINH                      */}
+      {/* ======================================================== */}
+      <EditStudentModal
+        isOpen={!!editingStudentProfile}
+        onClose={() => setEditingStudentProfile(null)}
+        student={editingStudentProfile}
+        onUpdateStudent={updateStudentInfo}
+      />
 
-              {/* 2. Ngân hàng nhận xét (Check-to-Select) */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                    <BookmarkPlus className="w-4 h-4 text-indigo-600" /> Ngân hàng nhận xét nhanh
-                  </span>
-                  <button
-                    onClick={handleAutoCombineFromTags}
-                    className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold"
-                  >
-                    Ghép câu tự động
-                  </button>
-                </div>
-
-                {/* Attitude tags */}
-                <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1.5">Thái độ học tập:</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {COMMENT_BANK.attitude.map((tag) => {
-                      const isSelected = selectedAttitudeTags.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => {
-                            setSelectedAttitudeTags((prev) =>
-                              isSelected ? prev.filter((t) => t !== tag) : [...prev, tag]
-                            );
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-xs transition-colors border ${
-                            isSelected
-                              ? 'bg-indigo-600 text-white border-indigo-600 font-medium'
-                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {isSelected ? '☑ ' : '☐ '} {tag}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Academic tags */}
-                <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1.5">Học tập & Kiến thức:</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {COMMENT_BANK.academic.map((tag) => {
-                      const isSelected = selectedStudyTags.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => {
-                            setSelectedStudyTags((prev) =>
-                              isSelected ? prev.filter((t) => t !== tag) : [...prev, tag]
-                            );
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-xs transition-colors border ${
-                            isSelected
-                              ? 'bg-blue-600 text-white border-blue-600 font-medium'
-                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {isSelected ? '☑ ' : '☐ '} {tag}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Cooperation & Discipline tags */}
-                <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-1.5">Hợp tác & Nề nếp:</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {COMMENT_BANK.cooperation.slice(0, 3).concat(COMMENT_BANK.discipline.slice(0, 3)).map((tag) => {
-                      const isSelected = selectedCoopTags.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => {
-                            setSelectedCoopTags((prev) =>
-                              isSelected ? prev.filter((t) => t !== tag) : [...prev, tag]
-                            );
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-xs transition-colors border ${
-                            isSelected
-                              ? 'bg-emerald-600 text-white border-emerald-600 font-medium'
-                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {isSelected ? '☑ ' : '☐ '} {tag}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. AI Smart Writer (Gemini 3.8 Flash) */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-indigo-600" />
-                    <span className="font-bold text-slate-900 text-xs">
-                      Trợ lý AI (Gemini): Tạo nhận xét ấm áp & tự nhiên
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleGenerateAiComment}
-                    disabled={isGeneratingAi}
-                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-all disabled:opacity-50"
-                  >
-                    {isGeneratingAi ? (
-                      'AI đang viết...'
-                    ) : (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5" /> Tạo nhận xét độc bản
-                      </>
-                    )}
-                  </button>
-                </div>
-                <p className="text-[11px] text-slate-600">
-                  AI sẽ dựa vào các thẻ cô vừa chọn để viết nhận xét chuẩn sư phạm, cá nhân hóa riêng cho em {editingStudent.name}, tránh học sinh nào cũng nhận xét giống nhau.
-                </p>
-                {aiSuccessBadge && (
-                  <p className="text-xs text-emerald-700 font-semibold animate-in fade-in flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> AI đã tạo lời nhận xét và gợi ý cho cha mẹ thành công!
-                  </p>
-                )}
-              </div>
-
-              {/* 4. Textarea for Teacher Comment */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Nội dung nhận xét của Cô Vân Anh:
-                </label>
-                <textarea
-                  rows={3}
-                  value={customTeacherComment}
-                  onChange={(e) => setCustomTeacherComment(e.target.value)}
-                  className="w-full p-3 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:border-indigo-600 focus:bg-white"
-                  placeholder="Nhập hoặc để AI tạo nhận xét..."
-                />
-              </div>
-
-              {/* 5. Textarea for Parent Tip */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  💡 Góc đồng hành - Gợi ý dành cho cha mẹ tuần này:
-                </label>
-                <textarea
-                  rows={2}
-                  value={customParentTip}
-                  onChange={(e) => setCustomParentTip(e.target.value)}
-                  className="w-full p-3 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:border-indigo-600 focus:bg-white"
-                  placeholder="Gợi ý cha mẹ làm gì ở nhà để đồng hành cùng con..."
-                />
-              </div>
-
-              {/* 6. Môn Ngữ Văn tuần này (Cô Vân Anh phụ trách) */}
-              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 font-bold text-emerald-900 text-xs">
-                    <BookOpen className="w-4 h-4 text-emerald-600" />
-                    <span>Đánh giá môn Ngữ Văn tuần này (Cô Vân Anh)</span>
-                  </div>
-                  <span className="text-[11px] text-emerald-700 font-medium">Chuyên môn Ngữ Văn</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div className="sm:col-span-2">
-                    <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Văn bản / Bài học tuần:</label>
-                    <input
-                      type="text"
-                      value={customLitLesson}
-                      onChange={(e) => setCustomLitLesson(e.target.value)}
-                      placeholder="vd: Gặp lá cơm nếp (Thanh Thảo) & Viết đoạn văn"
-                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-emerald-300 rounded-lg focus:outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-emerald-800 mb-1">Điểm tuần (nếu có):</label>
-                    <input
-                      type="number"
-                      step="0.25"
-                      min="0"
-                      max="10"
-                      value={customLitScore}
-                      onChange={(e) => setCustomLitScore(e.target.value)}
-                      placeholder="vd: 8.5"
-                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-emerald-300 rounded-lg text-center font-bold focus:outline-hidden"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-emerald-800 mb-1">
-                    Lời phê & Nhận xét kỹ năng cảm thụ/viết đoạn văn của Cô Vân Anh:
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={customLitFeedback}
-                    onChange={(e) => setCustomLitFeedback(e.target.value)}
-                    className="w-full p-2.5 text-xs bg-white border border-emerald-300 rounded-xl focus:outline-hidden"
-                    placeholder="Nhận xét cách cảm nhận văn bản, diễn đạt, dùng từ, chính tả..."
-                  />
-                </div>
-              </div>
-
-              {/* Strengths & Improvements */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Điểm mạnh:</label>
-                  <input
-                    type="text"
-                    value={customStrengths}
-                    onChange={(e) => setCustomStrengths(e.target.value)}
-                    className="w-full p-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Cần cải thiện:</label>
-                  <input
-                    type="text"
-                    value={customImprovements}
-                    onChange={(e) => setCustomImprovements(e.target.value)}
-                    className="w-full p-2.5 text-xs bg-slate-50 border border-slate-300 rounded-xl"
-                  />
-                </div>
-              </div>
-
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setEditingStudent(null)}
-                className="px-4 py-2 text-xs sm:text-sm text-slate-600 hover:text-slate-900 font-medium"
-              >
-                Đóng
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveComposer}
-                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-1.5"
-              >
-                <CheckCircle2 className="w-4 h-4" /> Lưu & Duyệt gửi phụ huynh
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      {/* ======================================================== */}
+      {/* MODAL 5: ĐIỀU CHỈNH MỌI MỤC ĐÁNH GIÁ TUẦN & AI GEMINI   */}
+      {/* ======================================================== */}
+      <EvaluationComposerModal
+        isOpen={!!editingStudentEvaluation}
+        onClose={() => setEditingStudentEvaluation(null)}
+        student={editingStudentEvaluation}
+        selectedWeek={selectedWeek}
+        onSave={(data, isApproved) => {
+          if (editingStudentEvaluation) {
+            updateEvaluation(editingStudentEvaluation.id, selectedWeek, {
+              ...data,
+              isApproved,
+            });
+          }
+        }}
+      />
 
       {/* ======================================================== */}
       {/* MODAL: ĐĂNG THÔNG BÁO MỚI (🔴 / 🟡 / 🟢)                */}
@@ -1331,7 +1075,7 @@ export const TeacherView: React.FC = () => {
                   BÁO CÁO SỔ LIÊN LẠC ĐIỆN TỬ LỚP 7C – TUẦN {selectedWeek}
                 </h1>
                 <p className="text-xs text-slate-500 mt-1">
-                  Giáo viên: Cô Vân Anh • Sĩ số: 38 học sinh • Thời gian: Tháng 09/2024
+                  Giáo viên: Cô Vân Anh • Sĩ số: 38 học sinh • Thời gian: Tháng 09/2026
                 </p>
               </div>
 
@@ -1373,7 +1117,7 @@ export const TeacherView: React.FC = () => {
                   <p className="text-[10px] text-slate-400 mt-12">(Ký và ghi rõ họ tên)</p>
                 </div>
                 <div>
-                  <p className="italic text-slate-500">Hà Nội, ngày 11 tháng 09 năm 2024</p>
+                  <p className="italic text-slate-500">Hà Nội, ngày 11 tháng 09 năm 2026</p>
                   <p className="font-bold mt-1">GIÁO VIÊN BỘ MÔN NGỮ VĂN</p>
                   <p className="font-semibold text-indigo-700 mt-12">Cô Vân Anh</p>
                 </div>

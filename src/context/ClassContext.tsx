@@ -1,16 +1,49 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Student, Announcement, WeeklyEvaluation, Badge, PortfolioItem, LiteratureLessonContent, LiteratureGradeRecord } from '../types';
-import { INITIAL_STUDENTS, INITIAL_ANNOUNCEMENTS, CLASS_INFO, INITIAL_LESSON_CONTENTS } from '../data/mockData';
+import {
+  Student,
+  Announcement,
+  WeeklyEvaluation,
+  Badge,
+  PortfolioItem,
+  LiteratureLessonContent,
+  LiteratureGradeRecord,
+  WeekInfo,
+  ClassInfo,
+} from '../types';
+import {
+  INITIAL_STUDENTS,
+  INITIAL_ANNOUNCEMENTS,
+  CLASS_INFO,
+  INITIAL_LESSON_CONTENTS,
+  INITIAL_WEEKS,
+} from '../data/mockData';
+
+interface AddWeekParams {
+  week: number;
+  title: string;
+  startDate?: string;
+  endDate?: string;
+  focusTheme?: string;
+  copyFromPrevious?: boolean;
+  setAsCurrent?: boolean;
+}
 
 interface ClassContextType {
   role: 'parent' | 'teacher';
   setRole: (role: 'parent' | 'teacher') => void;
+  isTeacherAuthenticated: boolean;
+  unlockTeacher: (password: string) => boolean;
+  lockTeacher: () => void;
   students: Student[];
   currentStudentId: string;
   setCurrentStudentId: (id: string) => void;
   currentStudent: Student | undefined;
+  weeks: WeekInfo[];
   selectedWeek: number;
   setSelectedWeek: (week: number) => void;
+  addWeek: (params: AddWeekParams) => void;
+  updateWeekInfo: (week: number, data: Partial<WeekInfo>) => void;
+  deleteWeek: (week: number) => void;
   announcements: Announcement[];
   addAnnouncement: (announcement: Omit<Announcement, 'id'>) => void;
   deleteAnnouncement: (id: string) => void;
@@ -21,13 +54,16 @@ interface ClassContextType {
   updateLessonContent: (id: string, content: Partial<LiteratureLessonContent>) => void;
   deleteLessonContent: (id: string) => void;
   updateLiteratureGrades: (studentId: string, data: Partial<LiteratureGradeRecord>) => void;
+  batchRecalculateLiteratureAverages: () => void;
   addParentMessage: (studentId: string, content: string) => void;
   replyParentMessage: (studentId: string, messageId: string, reply: string) => void;
   addBadge: (studentId: string, badge: Omit<Badge, 'id'>) => void;
   addPortfolioItem: (studentId: string, item: Omit<PortfolioItem, 'id'>) => void;
   updatePersonalGoal: (studentId: string, goal: string) => void;
   toggleNeedsAttention: (studentId: string, reason?: string) => void;
-  classInfo: typeof CLASS_INFO;
+  updateStudentInfo: (studentId: string, data: Partial<Student>) => void;
+  classInfo: ClassInfo;
+  updateClassInfo: (data: Partial<ClassInfo>) => void;
   resetAllData: () => void;
 }
 
@@ -36,12 +72,58 @@ const ClassContext = createContext<ClassContextType | undefined>(undefined);
 const STORAGE_STUDENTS_KEY = 'so_lien_lac_7c_students_v1';
 const STORAGE_ANNOUNCEMENTS_KEY = 'so_lien_lac_7c_announcements_v1';
 const STORAGE_LESSONS_KEY = 'so_lien_lac_7c_lessons_v1';
+const STORAGE_WEEKS_KEY = 'so_lien_lac_7c_weeks_v1';
+const STORAGE_CLASS_INFO_KEY = 'so_lien_lac_7c_class_info_v1';
 const STORAGE_STUDENT_ID_KEY = 'so_lien_lac_7c_current_id_v1';
 const STORAGE_ROLE_KEY = 'so_lien_lac_7c_role_v1';
+const STORAGE_TEACHER_AUTH_KEY = 'so_lien_lac_7c_teacher_auth_v1';
 
 export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isTeacherAuthenticated, setIsTeacherAuthenticated] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem(STORAGE_TEACHER_AUTH_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   const [role, setRoleState] = useState<'parent' | 'teacher'>(() => {
-    return (localStorage.getItem(STORAGE_ROLE_KEY) as 'parent' | 'teacher') || 'parent';
+    const savedRole = (localStorage.getItem(STORAGE_ROLE_KEY) as 'parent' | 'teacher') || 'parent';
+    try {
+      const isAuth = sessionStorage.getItem(STORAGE_TEACHER_AUTH_KEY) === 'true';
+      if (savedRole === 'teacher' && !isAuth) {
+        return 'parent';
+      }
+    } catch {
+      return 'parent';
+    }
+    return savedRole;
+  });
+
+  const [classInfo, setClassInfo] = useState<ClassInfo>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_CLASS_INFO_KEY);
+      if (saved) {
+        const parsed: ClassInfo = JSON.parse(saved);
+        if (!parsed.academicYear || parsed.academicYear.includes('2024')) {
+          parsed.academicYear = 'Năm học 2026 - 2027';
+        }
+        return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to load class info:', e);
+    }
+    return CLASS_INFO;
+  });
+
+  const [weeks, setWeeks] = useState<WeekInfo[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_WEEKS_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Failed to load weeks:', e);
+    }
+    return INITIAL_WEEKS;
   });
 
   const [students, setStudents] = useState<Student[]>(() => {
@@ -98,7 +180,9 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return saved || '7C09'; // Default to Nguyễn Ngọc Bảo Châu
   });
 
-  const [selectedWeek, setSelectedWeek] = useState<number>(4);
+  const [selectedWeek, setSelectedWeek] = useState<number>(() => {
+    return classInfo.currentWeek || 4;
+  });
 
   // Sync with localStorage
   useEffect(() => {
@@ -125,7 +209,52 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [lessonContents]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_WEEKS_KEY, JSON.stringify(weeks));
+    } catch (e) {
+      console.warn('Storage error:', e);
+    }
+  }, [weeks]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_CLASS_INFO_KEY, JSON.stringify(classInfo));
+    } catch (e) {
+      console.warn('Storage error:', e);
+    }
+  }, [classInfo]);
+
+  const unlockTeacher = (password: string): boolean => {
+    if (password.trim() === '20182022') {
+      try {
+        sessionStorage.setItem(STORAGE_TEACHER_AUTH_KEY, 'true');
+      } catch (e) {
+        console.error(e);
+      }
+      setIsTeacherAuthenticated(true);
+      setRoleState('teacher');
+      localStorage.setItem(STORAGE_ROLE_KEY, 'teacher');
+      return true;
+    }
+    return false;
+  };
+
+  const lockTeacher = () => {
+    try {
+      sessionStorage.removeItem(STORAGE_TEACHER_AUTH_KEY);
+    } catch (e) {
+      console.error(e);
+    }
+    setIsTeacherAuthenticated(false);
+    setRoleState('parent');
+    localStorage.setItem(STORAGE_ROLE_KEY, 'parent');
+  };
+
   const setRole = (newRole: 'parent' | 'teacher') => {
+    if (newRole === 'teacher' && !isTeacherAuthenticated) {
+      return;
+    }
     setRoleState(newRole);
     localStorage.setItem(STORAGE_ROLE_KEY, newRole);
   };
@@ -136,6 +265,210 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const currentStudent = students.find((s) => s.id === currentStudentId) || students[0];
+
+  const updateClassInfo = (data: Partial<ClassInfo>) => {
+    setClassInfo((prev) => ({ ...prev, ...data }));
+  };
+
+  const updateStudentInfo = (studentId: string, data: Partial<Student>) => {
+    setStudents((prev) =>
+      prev.map((s) => (s.id === studentId ? { ...s, ...data } : s))
+    );
+  };
+
+  const addWeek = (params: AddWeekParams) => {
+    const {
+      week: newWeekNum,
+      title,
+      startDate,
+      endDate,
+      focusTheme,
+      copyFromPrevious = true,
+      setAsCurrent = false,
+    } = params;
+
+    // Check if week already exists
+    const existingIndex = weeks.findIndex((w) => w.week === newWeekNum);
+    let updatedWeeks = [...weeks];
+
+    const newWeekItem: WeekInfo = {
+      week: newWeekNum,
+      title: title || `Tuần ${newWeekNum}`,
+      startDate,
+      endDate,
+      focusTheme,
+      isCurrent: setAsCurrent,
+    };
+
+    if (existingIndex >= 0) {
+      updatedWeeks[existingIndex] = { ...updatedWeeks[existingIndex], ...newWeekItem };
+    } else {
+      updatedWeeks.push(newWeekItem);
+      updatedWeeks.sort((a, b) => a.week - b.week);
+    }
+
+    if (setAsCurrent) {
+      updatedWeeks = updatedWeeks.map((w) => ({
+        ...w,
+        isCurrent: w.week === newWeekNum,
+      }));
+      setClassInfo((prev) => ({ ...prev, currentWeek: newWeekNum }));
+    }
+
+    setWeeks(updatedWeeks);
+
+    // Initialize or update evaluation for all students for this week
+    setStudents((prev) =>
+      prev.map((student) => {
+        // If already has this week, keep it
+        if (student.weeklyEvaluations[newWeekNum]) {
+          return {
+            ...student,
+            weeklyEvaluations: {
+              ...student.weeklyEvaluations,
+              [newWeekNum]: {
+                ...student.weeklyEvaluations[newWeekNum],
+                title: title || student.weeklyEvaluations[newWeekNum].title,
+              },
+            },
+          };
+        }
+
+        // Get previous week data if requested
+        const prevWeekEval =
+          student.weeklyEvaluations[newWeekNum - 1] ||
+          student.weeklyEvaluations[4] ||
+          student.weeklyEvaluations[1];
+
+        let initialEval: WeeklyEvaluation;
+
+        if (copyFromPrevious && prevWeekEval) {
+          initialEval = {
+            ...prevWeekEval,
+            week: newWeekNum,
+            title: title || `Tuần ${newWeekNum}`,
+            isApproved: false, // New week starts as pending review
+            literatureWeekly: {
+              lessonTitle: focusTheme || `Bài học Ngữ Văn tuần ${newWeekNum}`,
+              score: prevWeekEval.literatureWeekly?.score || null,
+              feedback: `Em ${student.name} tiếp tục phát huy tinh thần học tập tích cực trong tuần ${newWeekNum}.`,
+              writingSkill: prevWeekEval.literatureWeekly?.writingSkill || 'Khá tốt',
+              readingSkill: prevWeekEval.literatureWeekly?.readingSkill || 'Nắm được nội dung chính',
+            },
+          };
+        } else {
+          initialEval = {
+            week: newWeekNum,
+            title: title || `Tuần ${newWeekNum}`,
+            academic: 'Tốt',
+            academicScore: 4,
+            discipline: 'Tốt',
+            disciplineScore: 5,
+            attitude: 'Tích cực',
+            attitudeScore: 4,
+            cooperation: 'Tốt',
+            cooperationScore: 4,
+            attendance: 'Tốt (Đúng giờ)',
+            attendanceScore: 5,
+            progressStars: 4,
+            progressTrend: 'steady',
+            strengths: 'Tích cực tham gia xây dựng bài',
+            improvements: 'Cần tự tin hơn khi trình bày ý kiến',
+            familyCoordination: 'Gia đình cùng theo sát và nhắc nhở con làm bài tập đầy đủ',
+            teacherComment: `${student.name} có ý thức học tập tốt, ngoan ngoãn và chăm chỉ trong tuần.`,
+            parentTip: 'Cha mẹ hãy dành 10 phút mỗi tối để cùng con đọc sách hoặc trò chuyện về bài học trên lớp.',
+            isApproved: false,
+            literatureWeekly: {
+              lessonTitle: focusTheme || `Bài học Ngữ Văn tuần ${newWeekNum}`,
+              score: null,
+              feedback: 'Có cố gắng trong các tiết học Ngữ Văn.',
+              writingSkill: 'Khá tốt',
+              readingSkill: 'Nắm được nội dung chính',
+            },
+          };
+        }
+
+        return {
+          ...student,
+          weeklyEvaluations: {
+            ...student.weeklyEvaluations,
+            [newWeekNum]: initialEval,
+          },
+        };
+      })
+    );
+
+    // If lesson content for this week doesn't exist, create a draft template
+    const existingLesson = lessonContents.find((l) => l.week === newWeekNum);
+    if (!existingLesson) {
+      const nowStr = new Date().toLocaleDateString('vi-VN');
+      const newLesson: LiteratureLessonContent = {
+        id: `lit-w${newWeekNum}-${Date.now()}`,
+        week: newWeekNum,
+        title: focusTheme || `Chương trình Ngữ Văn tuần ${newWeekNum}`,
+        topic: `Bài học theo kế hoạch tuần ${newWeekNum}`,
+        keyKnowledge: 'Trọng tâm kiến thức đọc hiểu văn bản và thực hành Tiếng Việt tuần này...',
+        homework: '1. Đọc kỹ văn bản bài học và soạn bài trước.\n2. Hoàn thành phiếu bài tập rèn kỹ năng viết.',
+        sampleExcerpt: 'Đoạn văn tham khảo dành cho học sinh lớp 7C rèn luyện cách diễn đạt giàu cảm xúc...',
+        updatedDate: nowStr,
+        author: 'Cô Vân Anh - Giáo viên môn Ngữ Văn',
+      };
+      setLessonContents((prev) => [newLesson, ...prev]);
+    }
+
+    // Switch view to this new week
+    setSelectedWeek(newWeekNum);
+  };
+
+  const updateWeekInfo = (weekNum: number, data: Partial<WeekInfo>) => {
+    setWeeks((prev) =>
+      prev.map((w) => {
+        if (w.week !== weekNum) {
+          if (data.isCurrent) return { ...w, isCurrent: false };
+          return w;
+        }
+        return { ...w, ...data };
+      })
+    );
+
+    if (data.isCurrent) {
+      setClassInfo((prev) => ({ ...prev, currentWeek: weekNum }));
+    }
+
+    if (data.title) {
+      setStudents((prev) =>
+        prev.map((s) => {
+          const ev = s.weeklyEvaluations[weekNum];
+          if (!ev) return s;
+          return {
+            ...s,
+            weeklyEvaluations: {
+              ...s.weeklyEvaluations,
+              [weekNum]: { ...ev, title: data.title! },
+            },
+          };
+        })
+      );
+    }
+  };
+
+  const deleteWeek = (weekNum: number) => {
+    if (weeks.length <= 1) return;
+    setWeeks((prev) => prev.filter((w) => w.week !== weekNum));
+
+    setStudents((prev) =>
+      prev.map((s) => {
+        const newEvals = { ...s.weeklyEvaluations };
+        delete newEvals[weekNum];
+        return { ...s, weeklyEvaluations: newEvals };
+      })
+    );
+
+    if (selectedWeek === weekNum) {
+      const remaining = weeks.filter((w) => w.week !== weekNum);
+      setSelectedWeek(remaining[remaining.length - 1]?.week || 1);
+    }
+  };
 
   const updateEvaluation = (studentId: string, week: number, data: Partial<WeeklyEvaluation>) => {
     setStudents((prev) =>
@@ -313,9 +646,61 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       prev.map((student) => {
         if (student.id !== studentId) return student;
         const currentGrades = student.literatureGrades || {};
-        const merged = { ...currentGrades, ...data };
+        const merged: LiteratureGradeRecord = { ...currentGrades, ...data };
 
-        // Recalculate average
+        // Allow Teacher Van Anh to manually set or edit semesterAverage directly
+        let finalAvg = merged.semesterAverage;
+        if (data.isCustomAverage === false) {
+          merged.isCustomAverage = false;
+        }
+
+        if (data.semesterAverage !== undefined) {
+          finalAvg = data.semesterAverage;
+          merged.isCustomAverage = true;
+        } else if (!merged.isCustomAverage) {
+          // Recalculate average automatically with standard weighting:
+          // Oral(1), 15m1(1), 15m2(1), Period(2), Midterm(2), FinalExam(3)
+          const weights: number[] = [];
+          const scores: number[] = [];
+          if (typeof merged.oral === 'number' && !isNaN(merged.oral)) { scores.push(merged.oral); weights.push(1); }
+          if (typeof merged.test15m1 === 'number' && !isNaN(merged.test15m1)) { scores.push(merged.test15m1); weights.push(1); }
+          if (typeof merged.test15m2 === 'number' && !isNaN(merged.test15m2)) { scores.push(merged.test15m2); weights.push(1); }
+          if (typeof merged.periodTest === 'number' && !isNaN(merged.periodTest)) { scores.push(merged.periodTest); weights.push(2); }
+          if (typeof merged.midterm === 'number' && !isNaN(merged.midterm)) { scores.push(merged.midterm); weights.push(2); }
+          if (typeof merged.finalExam === 'number' && !isNaN(merged.finalExam)) { scores.push(merged.finalExam); weights.push(3); }
+
+          if (scores.length > 0) {
+            const totalScore = scores.reduce((sum, s, idx) => sum + s * weights[idx], 0);
+            const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+            finalAvg = Math.round((totalScore / totalWeight) * 10) / 10;
+          }
+        }
+
+        merged.semesterAverage = finalAvg;
+        // Keep aliases synchronized for parent view:
+        merged.averageScore = finalAvg;
+        merged.oralScores = merged.oral !== null && merged.oral !== undefined ? [merged.oral] : [];
+        merged.fifteenMinScores = [merged.test15m1, merged.test15m2].filter((v): v is number => typeof v === 'number');
+        merged.onePeriodScores = merged.periodTest !== null && merged.periodTest !== undefined ? [merged.periodTest] : [];
+        merged.midTermScore = merged.midterm;
+        merged.finalTermScore = merged.finalExam !== null && merged.finalExam !== undefined ? merged.finalExam : 'Chưa thi';
+        merged.teacherRemarks = merged.feedback;
+        merged.readingCompetency = merged.readingSkill;
+        merged.writingCompetency = merged.writingSkill;
+
+        return {
+          ...student,
+          literatureGrades: merged,
+        };
+      })
+    );
+  };
+
+  const batchRecalculateLiteratureAverages = () => {
+    setStudents((prev) =>
+      prev.map((student) => {
+        const currentGrades = student.literatureGrades || {};
+        const merged: LiteratureGradeRecord = { ...currentGrades, isCustomAverage: false };
         const weights: number[] = [];
         const scores: number[] = [];
         if (typeof merged.oral === 'number' && !isNaN(merged.oral)) { scores.push(merged.oral); weights.push(1); }
@@ -323,6 +708,7 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (typeof merged.test15m2 === 'number' && !isNaN(merged.test15m2)) { scores.push(merged.test15m2); weights.push(1); }
         if (typeof merged.periodTest === 'number' && !isNaN(merged.periodTest)) { scores.push(merged.periodTest); weights.push(2); }
         if (typeof merged.midterm === 'number' && !isNaN(merged.midterm)) { scores.push(merged.midterm); weights.push(2); }
+        if (typeof merged.finalExam === 'number' && !isNaN(merged.finalExam)) { scores.push(merged.finalExam); weights.push(3); }
 
         let calculatedAvg = merged.semesterAverage;
         if (scores.length > 0) {
@@ -331,12 +717,11 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           calculatedAvg = Math.round((totalScore / totalWeight) * 10) / 10;
         }
 
+        merged.semesterAverage = calculatedAvg;
+        merged.averageScore = calculatedAvg;
         return {
           ...student,
-          literatureGrades: {
-            ...merged,
-            semesterAverage: calculatedAvg,
-          },
+          literatureGrades: merged,
         };
       })
     );
@@ -379,12 +764,19 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       value={{
         role,
         setRole,
+        isTeacherAuthenticated,
+        unlockTeacher,
+        lockTeacher,
         students,
         currentStudentId,
         setCurrentStudentId,
         currentStudent,
+        weeks,
         selectedWeek,
         setSelectedWeek,
+        addWeek,
+        updateWeekInfo,
+        deleteWeek,
         announcements,
         addAnnouncement,
         deleteAnnouncement,
@@ -395,13 +787,16 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateLessonContent,
         deleteLessonContent,
         updateLiteratureGrades,
+        batchRecalculateLiteratureAverages,
         addParentMessage,
         replyParentMessage,
         addBadge,
         addPortfolioItem,
         updatePersonalGoal,
         toggleNeedsAttention,
-        classInfo: CLASS_INFO,
+        updateStudentInfo,
+        classInfo,
+        updateClassInfo,
         resetAllData,
       }}
     >

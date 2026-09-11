@@ -1,6 +1,6 @@
 {
-  "name": "Sổ liên lạc điện tử 7C – Đồng hành cùng con",
-  "description": "7C - HỌC VĂN CÙNG CÔ VÂN ANH: Góc học tập & Sổ liên lạc mến thương của Lớp 7C - THCS Tân Khai. Đồng hành học tốt môn Ngữ Văn cùng Cô Vân Anh.",
+  "name": "7C - NGỮ VĂN",
+  "description": "Sổ liên lạc điện tử Lớp 7C - Môn Ngữ Văn Cô Vân Anh, Năm học 2026 - 2027.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

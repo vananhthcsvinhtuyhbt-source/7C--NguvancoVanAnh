@@ -1,15 +1,47 @@
-import { Student, Announcement, WeeklyEvaluation, LiteratureLessonContent, LiteratureGradeRecord } from '../types';
+import { Student, Announcement, WeeklyEvaluation, LiteratureLessonContent, LiteratureGradeRecord, WeekInfo, ClassInfo } from '../types';
 
-export const CLASS_INFO = {
+export const CLASS_INFO: ClassInfo = {
   name: 'Lớp 7C',
   school: 'Trường THCS Tân Khai',
   homeroomTeacher: 'Cô Vân Anh',
   teacherTitle: 'Giáo viên môn Ngữ Văn',
   teacherRole: 'Giáo viên bộ môn Ngữ Văn Lớp 7C',
-  academicYear: 'Năm học 2024 - 2025',
+  academicYear: 'Năm học 2026 - 2027',
   totalStudents: 38,
   currentWeek: 4,
 };
+
+export const INITIAL_WEEKS: WeekInfo[] = [
+  {
+    week: 1,
+    title: 'Tuần 1 (18/08 - 24/08)',
+    startDate: '18/08/2026',
+    endDate: '24/08/2026',
+    focusTheme: 'Khởi động năm học mới & Bầy chim chìa vôi',
+  },
+  {
+    week: 2,
+    title: 'Tuần 2 (25/08 - 31/08)',
+    startDate: '25/08/2026',
+    endDate: '31/08/2026',
+    focusTheme: 'Đi lấy mật & Nề nếp học tập',
+  },
+  {
+    week: 3,
+    title: 'Tuần 3 (01/09 - 07/09)',
+    startDate: '01/09/2026',
+    endDate: '07/09/2026',
+    focusTheme: 'Đồng dao mùa xuân & Tinh thần đoàn kết',
+  },
+  {
+    week: 4,
+    title: 'Tuần 4 (08/09 - 14/09)',
+    startDate: '08/09/2026',
+    endDate: '14/09/2026',
+    focusTheme: 'Gặp lá cơm nếp & Viết đoạn văn biểu cảm',
+    isCurrent: true,
+  },
+];
 
 // Comment bank tags for fast teacher selection
 export const COMMENT_BANK = {
@@ -76,7 +108,7 @@ export const INITIAL_LESSON_CONTENTS: LiteratureLessonContent[] = [
       '1. Viết hoàn chỉnh đoạn văn (7-10 câu) ghi lại cảm xúc về bài thơ "Gặp lá cơm nếp".\n2. Soạn trước bài "Thực hành Tiếng Việt: Nghĩa của từ và biện pháp tu từ điệp ngữ".\n3. Đọc lại bài và tự kiểm tra chính tả.',
     sampleExcerpt:
       'Mùi lá cơm nếp không chỉ là hương vị thân thương của món ăn thôn dã mà đã hóa thành biểu tượng thiêng liêng của tình mẹ bao la, theo chân người lính trên khắp dặm dài Tổ quốc...',
-    updatedDate: '08/09/2024',
+    updatedDate: '08/09/2026',
     author: 'Cô Vân Anh - Giáo viên môn Ngữ Văn',
   },
   {
@@ -90,7 +122,7 @@ export const INITIAL_LESSON_CONTENTS: LiteratureLessonContent[] = [
       'Học thuộc lòng bài thơ "Đồng dao mùa xuân". Hoàn thành phiếu bài tập cảm thụ khổ thơ 2 và 3.',
     sampleExcerpt:
       'Hình ảnh người lính trẻ "chưa một lần yêu / cà phê chưa uống / còn mê thả diều" nằm lại giữa ngút ngàn Trường Sơn để lại nỗi xúc động nghẹn ngào trong lòng người đọc bao thế hệ...',
-    updatedDate: '01/09/2024',
+    updatedDate: '01/09/2026',
     author: 'Cô Vân Anh - Giáo viên môn Ngữ Văn',
   },
   {
@@ -104,7 +136,7 @@ export const INITIAL_LESSON_CONTENTS: LiteratureLessonContent[] = [
       'Viết đoạn văn ngắn 5-7 câu miêu tả cảnh bình minh trong rừng tràm U Minh.',
     sampleExcerpt:
       'Rừng tràm rực lên trong ánh ban mai lấp lánh, tiếng chim rừng ríu rít gọi bầy như một bản hòa ca diệu kỳ của thiên nhiên hoang dã Nam Bộ...',
-    updatedDate: '25/08/2024',
+    updatedDate: '25/08/2026',
     author: 'Cô Vân Anh - Giáo viên môn Ngữ Văn',
   },
   {
@@ -118,7 +150,7 @@ export const INITIAL_LESSON_CONTENTS: LiteratureLessonContent[] = [
       'Vẽ sơ đồ tư duy tóm tắt cốt truyện và các mốc thời gian trong đêm mưa bão của hai anh em Mên, Mon.',
     sampleExcerpt:
       'Hai đứa trẻ không ngủ được không phải vì sợ nước ngập mà vì một nỗi trăn trở thuần khiết: liệu bầy chim chìa vôi non ngoài bãi cát có bị dòng nước cuốn trôi...',
-    updatedDate: '18/08/2024',
+    updatedDate: '18/08/2026',
     author: 'Cô Vân Anh - Giáo viên môn Ngữ Văn',
   },
 ];
@@ -363,7 +395,7 @@ export const INITIAL_STUDENTS: Student[] = RAW_NAMES.map((name, idx) => {
         id: `b1-${code}`,
         title: 'Học sinh tiến bộ',
         icon: '🏅',
-        date: '10/09/2024',
+        date: '10/09/2026',
         description: 'Được tuyên dương vì sự nỗ lực vươn lên trong học tập',
         color: 'bg-amber-100 text-amber-800 border-amber-300',
       },
@@ -371,7 +403,7 @@ export const INITIAL_STUDENTS: Student[] = RAW_NAMES.map((name, idx) => {
         id: `b2-${code}`,
         title: 'Chăm học chăm làm',
         icon: '📚',
-        date: '03/09/2024',
+        date: '03/09/2026',
         description: 'Hoàn thành 100% bài tập về nhà đúng hạn',
         color: 'bg-blue-100 text-blue-800 border-blue-300',
       },
@@ -379,7 +411,7 @@ export const INITIAL_STUDENTS: Student[] = RAW_NAMES.map((name, idx) => {
         id: `b3-${code}`,
         title: 'Đồng đội tuyệt vời',
         icon: '🤝',
-        date: '27/08/2024',
+        date: '27/08/2026',
         description: 'Tích cực hỗ trợ bạn bè trong các hoạt động nhóm',
         color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
       },
@@ -389,21 +421,21 @@ export const INITIAL_STUDENTS: Student[] = RAW_NAMES.map((name, idx) => {
         id: `p1-${code}`,
         title: 'Sơ đồ tư duy môn Khoa học Tự nhiên',
         type: 'Dự án học tập',
-        date: '09/09/2024',
+        date: '09/09/2026',
         description: 'Bản đồ tư duy tổng hợp chủ đề Tế bào sinh học với hình vẽ minh họa sáng tạo.',
       },
       {
         id: `p2-${code}`,
         title: 'Bài thuyết trình Lịch sử & Địa lí',
         type: 'Sản phẩm sáng tạo',
-        date: '02/09/2024',
+        date: '02/09/2026',
         description: 'Tham gia thiết kế slide và thuyết trình về nền văn minh Đại Việt.',
       },
       {
         id: `p3-${code}`,
         title: 'Giấy khen Nụ cười Tân Khai',
         type: 'Giấy khen',
-        date: '05/09/2024',
+        date: '05/09/2026',
         description: 'Được lớp và Cô Vân Anh bình chọn gương mặt tích cực đầu năm học.',
       },
     ],
@@ -411,11 +443,11 @@ export const INITIAL_STUDENTS: Student[] = RAW_NAMES.map((name, idx) => {
     parentMessages: [
       {
         id: `msg-${code}-1`,
-        date: '11/09/2024 19:30',
+        date: '11/09/2026 19:30',
         sender: `Phụ huynh em ${name}`,
         content: 'Chào cô Vân Anh ạ. Tuần này cháu về khoe được cô khen ở lớp, gia đình rất vui và cảm ơn cô đã luôn sát sao với con ạ!',
         reply: 'Dạ cô chào gia đình ạ! Con tuần này rất ngoan và chăm chỉ, cô trò mình tiếp tục cùng đồng hành động viên con nhé!',
-        repliedAt: '11/09/2024 20:15',
+        repliedAt: '11/09/2026 20:15',
       },
     ],
   };
@@ -426,7 +458,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     id: 'ann-1',
     title: '🔴 Lịch kiểm tra giữa học kỳ I & Ôn tập môn Ngữ Văn Lớp 7C',
     category: 'important',
-    date: '11/09/2024',
+    date: '11/09/2026',
     author: 'Cô Vân Anh - Giáo viên Ngữ Văn',
     pinned: true,
     content:
@@ -436,7 +468,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     id: 'ann-2',
     title: '🟡 Nhắc việc: Chuẩn bị văn bản bài học Ngữ Văn thứ Sáu',
     category: 'reminder',
-    date: '10/09/2024',
+    date: '10/09/2026',
     author: 'Cô Vân Anh - Giáo viên Ngữ Văn',
     pinned: false,
     content:
@@ -446,7 +478,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     id: 'ann-3',
     title: '🟢 Tuyên dương: Lớp 7C đạt nhiều điểm tốt môn Ngữ Văn tuần 4',
     category: 'achievement',
-    date: '08/09/2024',
+    date: '08/09/2026',
     author: 'Cô Vân Anh - Giáo viên Ngữ Văn',
     pinned: false,
     content:
@@ -456,7 +488,7 @@ export const INITIAL_ANNOUNCEMENTS: Announcement[] = [
     id: 'ann-4',
     title: '🟡 Nhắc việc: Đăng ký tham gia Câu lạc bộ Đọc sách & Sáng tác văn học',
     category: 'reminder',
-    date: '05/09/2024',
+    date: '05/09/2026',
     author: 'Cô Vân Anh - Giáo viên Ngữ Văn',
     pinned: false,
     content:

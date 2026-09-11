@@ -34,6 +34,7 @@ type TabType = 'home' | 'evaluation' | 'weekly' | 'literature' | 'announcements'
 export const ParentView: React.FC = () => {
   const {
     currentStudent,
+    weeks,
     selectedWeek,
     setSelectedWeek,
     announcements,
@@ -150,7 +151,7 @@ export const ParentView: React.FC = () => {
                     <span>🌸</span> {currentStudent.code}
                   </span>
                   <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
-                    7C - HỌC VĂN CÙNG CÔ VÂN ANH ✨
+                    7C - NGỮ VĂN ✨
                   </span>
                   <span className="text-xs text-slate-500 font-medium hidden sm:inline">
                     Giáo viên Ngữ Văn: {classInfo.homeroomTeacher}
@@ -245,7 +246,7 @@ export const ParentView: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-rose-50">
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-rose-600 flex items-center gap-1">
-                    <span>🌸</span> 7C - HỌC VĂN CÙNG CÔ VÂN ANH • Sổ liên lạc Tuần 4 ✨
+                    <span>🌸</span> 7C - NGỮ VĂN • Sổ liên lạc Tuần {selectedWeek} ✨
                   </span>
                   <h2 className="text-lg sm:text-xl font-bold text-slate-900 mt-0.5 flex items-center gap-1.5">
                     <span>Tổng quan chăm ngoan & học tập của con</span>
@@ -527,11 +528,12 @@ export const ParentView: React.FC = () => {
                       📚 Học tập & Tiếp thu kiến thức
                     </span>
                     <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                      Tuần 4: ⭐⭐⭐⭐⭐
+                      Tuần {classInfo.currentWeek}: ⭐⭐⭐⭐⭐
                     </span>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 pt-2">
-                    {[1, 2, 3, 4].map((w) => {
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 pt-2">
+                    {weeks.map((wInfo) => {
+                      const w = wInfo.week;
                       const ev = currentStudent.weeklyEvaluations[w];
                       const stars = ev?.academicScore || 4;
                       return (
@@ -552,11 +554,12 @@ export const ParentView: React.FC = () => {
                       ⏰ Nề nếp, Chuyên cần & Trang phục
                     </span>
                     <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
-                      Tuần 4: Chuẩn mực
+                      Tuần {classInfo.currentWeek}: Chuẩn mực
                     </span>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 pt-2">
-                    {[1, 2, 3, 4].map((w) => {
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 pt-2">
+                    {weeks.map((wInfo) => {
+                      const w = wInfo.week;
                       const ev = currentStudent.weeklyEvaluations[w];
                       const stars = ev?.disciplineScore || 5;
                       return (
@@ -580,8 +583,9 @@ export const ParentView: React.FC = () => {
                       Tiến bộ vượt bậc
                     </span>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 pt-2">
-                    {[1, 2, 3, 4].map((w) => {
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 pt-2">
+                    {weeks.map((wInfo) => {
+                      const w = wInfo.week;
                       const ev = currentStudent.weeklyEvaluations[w];
                       const stars = ev?.attitudeScore || 4;
                       return (
@@ -605,8 +609,9 @@ export const ParentView: React.FC = () => {
                       Rất hòa đồng
                     </span>
                   </div>
-                  <div className="grid grid-cols-4 gap-2 pt-2">
-                    {[1, 2, 3, 4].map((w) => {
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 pt-2">
+                    {weeks.map((wInfo) => {
+                      const w = wInfo.week;
                       const ev = currentStudent.weeklyEvaluations[w];
                       const stars = ev?.cooperationScore || 4;
                       return (
@@ -665,10 +670,11 @@ export const ParentView: React.FC = () => {
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-3">
                 Chọn tuần cần xem nhận xét:
               </span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map((w) => {
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                {weeks.map((wInfo) => {
+                  const w = wInfo.week;
                   const isSelected = selectedWeek === w;
-                  const isCurrent = w === 4;
+                  const isCurrent = wInfo.isCurrent || w === classInfo.currentWeek;
                   return (
                     <button
                       key={w}
@@ -688,12 +694,12 @@ export const ParentView: React.FC = () => {
                               isSelected ? 'bg-indigo-700 text-white' : 'bg-emerald-100 text-emerald-800'
                             }`}
                           >
-                            Mới nhất
+                            Hiện tại
                           </span>
                         )}
                       </div>
-                      <p className={`text-[11px] mt-1 ${isSelected ? 'text-indigo-100' : 'text-slate-500'}`}>
-                        {currentStudent.weeklyEvaluations[w]?.title || `Đánh giá tuần ${w}`}
+                      <p className={`text-[11px] mt-1 line-clamp-1 ${isSelected ? 'text-indigo-100' : 'text-slate-500'}`}>
+                        {wInfo.title || currentStudent.weeklyEvaluations[w]?.title || `Đánh giá tuần ${w}`}
                       </p>
                     </button>
                   );
@@ -828,7 +834,7 @@ export const ParentView: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
-                      Môn Ngữ Văn 7 • Năm học 2024 - 2025
+                      Môn Ngữ Văn 7 • {classInfo.academicYear || 'Năm học 2026 - 2027'}
                     </span>
                     <span className="text-xs text-slate-500 font-medium">Chương trình GDPT 2018</span>
                   </div>
@@ -1179,7 +1185,7 @@ export const ParentView: React.FC = () => {
                 </p>
                 <div className="mt-3 pt-3 border-t border-amber-200/60 flex items-center justify-between text-xs text-amber-900">
                   <span>Lời khuyên từ Cô Vân Anh & Chuyên gia giáo dục</span>
-                  <span className="font-semibold">Tuần 4 • 2024</span>
+                  <span className="font-semibold">Tuần {selectedWeek} • 2026 - 2027</span>
                 </div>
               </div>
 

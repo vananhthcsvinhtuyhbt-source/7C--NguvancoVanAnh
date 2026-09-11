@@ -8,16 +8,28 @@ import {
   Check,
   ChevronDown,
   Sparkles,
+  Lock,
 } from 'lucide-react';
+import { TeacherPasswordModal } from './TeacherPasswordModal';
 
 interface HeaderProps {
   onOpenLogin: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenLogin }) => {
-  const { role, setRole, students, currentStudent, setCurrentStudentId, classInfo } = useClass();
+  const {
+    role,
+    setRole,
+    students,
+    currentStudent,
+    setCurrentStudentId,
+    classInfo,
+    isTeacherAuthenticated,
+    unlockTeacher,
+  } = useClass();
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const filteredStudents = students.filter(
     (s) =>
@@ -30,23 +42,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenLogin }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20 gap-2 sm:gap-4">
           
-          {/* Logo & Cute Title: 7C - HỌC VĂN CÙNG CÔ VÂN ANH */}
+          {/* Logo & Cute Title: 7C - NGỮ VĂN */}
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-rose-400 via-pink-500 to-amber-400 flex items-center justify-center text-white shadow-sm shadow-rose-200 animate-gentle-float text-xl">
               <span>🌸</span>
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-extrabold text-slate-800 text-base sm:text-xl tracking-tight flex items-center gap-1.5">
-                  <span className="text-rose-600">7C</span>
-                  <span className="text-slate-400 font-light">•</span>
+                <h1 className="font-extrabold text-slate-800 text-base sm:text-2xl tracking-tight flex items-center gap-1.5">
+                  <span className="text-rose-600 font-black">7C</span>
+                  <span className="text-slate-300 font-light">-</span>
                   <span className="bg-gradient-to-r from-rose-600 via-purple-600 to-amber-600 bg-clip-text text-transparent">
-                    HỌC VĂN CÙNG CÔ VÂN ANH
+                    NGỮ VĂN
                   </span>
                   <span className="text-amber-500 text-sm animate-soft-pulse hidden sm:inline">✨</span>
                 </h1>
                 <span className="hidden lg:inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                  Lớp 7C mến thương 🌷
+                  Cô Vân Anh • {classInfo.academicYear || 'Năm học 2026 - 2027'} 🌷
                 </span>
               </div>
               <p className="text-xs text-slate-500 hidden sm:flex items-center gap-2 mt-0.5">
@@ -156,16 +168,31 @@ export const Header: React.FC<HeaderProps> = ({ onOpenLogin }) => {
               </button>
               <button
                 id="role-switch-teacher"
-                onClick={() => setRole('teacher')}
+                onClick={() => {
+                  if (role === 'teacher') return;
+                  if (isTeacherAuthenticated) {
+                    setRole('teacher');
+                  } else {
+                    setShowPasswordModal(true);
+                  }
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
                   role === 'teacher'
                     ? 'bg-rose-500 text-white shadow-xs'
                     : 'text-slate-600 hover:text-rose-800'
                 }`}
+                title={
+                  isTeacherAuthenticated
+                    ? 'Giao diện chỉnh sửa Cô Vân Anh'
+                    : 'Yêu cầu mật khẩu 20182022 để vào mục Cô Vân Anh'
+                }
               >
                 <span>🌸</span>
                 <span className="hidden sm:inline">Cô Vân Anh</span>
                 <span className="sm:hidden">Cô</span>
+                {!isTeacherAuthenticated && (
+                  <Lock className="w-3 h-3 text-slate-400 ml-0.5" />
+                )}
               </button>
             </div>
 
@@ -173,6 +200,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenLogin }) => {
 
         </div>
       </div>
+
+      {/* Password Modal to Enter Cô Vân Anh's View */}
+      <TeacherPasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        onSuccess={() => {
+          unlockTeacher('20182022');
+        }}
+      />
     </header>
   );
 };
