@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   Student,
   Announcement,
@@ -178,6 +178,12 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Dữ liệu Học sinh, Điểm số & Nhận xét được lưu trữ và đồng bộ thời gian thực qua Cloud Firestore.
   // Tuyệt đối KHÔNG dùng localStorage cho Điểm và Nhận xét (đồng bộ tức thì giữa máy cô giáo và máy phụ huynh).
   const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
+  const studentsRef = useRef<Student[]>(INITIAL_STUDENTS);
+
+  // Giữ studentsRef luôn cập nhật để các hàm gọi Firestore lấy được dữ liệu mới nhất ngay lập tức
+  useEffect(() => {
+    studentsRef.current = students;
+  }, [students]);
 
   // Đồng bộ học sinh, điểm số & nhận xét từ Cloud Firestore
   useEffect(() => {
@@ -195,6 +201,7 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // 2. Lắng nghe thay đổi thời gian thực từ Cloud Firestore
     const unsubscribe = subscribeToFirestoreStudents(
       (remoteStudents) => {
+        studentsRef.current = remoteStudents;
         setStudents(remoteStudents);
         try {
           localStorage.removeItem('so_lien_lac_7c_students_v4');
@@ -205,6 +212,7 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       () => {
         // Bộ sưu tập trên Firestore đang trống -> Khởi tạo dữ liệu lớp 7C lên Cloud
         const toSeed = legacyLocalStudents && legacyLocalStudents.length > 0 ? legacyLocalStudents : INITIAL_STUDENTS;
+        studentsRef.current = toSeed;
         seedInitialStudentsToFirestore(toSeed);
         setStudents(toSeed);
         try {
@@ -540,38 +548,44 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateEvaluation = (studentId: string, week: number, data: Partial<WeeklyEvaluation>) => {
-    let targetUpdatedEval: WeeklyEvaluation | null = null;
+    const currentStudent =
+      studentsRef.current.find((s) => s.id === studentId) ||
+      INITIAL_STUDENTS.find((s) => s.id === studentId);
+
+    const currentWeekEval = currentStudent?.weeklyEvaluations?.[week] || {
+      week,
+      title: `Tuần ${week}`,
+      academic: 'Tốt',
+      academicScore: 4,
+      discipline: 'Tốt',
+      disciplineScore: 5,
+      attitude: 'Tích cực',
+      attitudeScore: 4,
+      cooperation: 'Tốt',
+      cooperationScore: 4,
+      attendance: 'Tốt (Đúng giờ)',
+      attendanceScore: 5,
+      progressStars: 4,
+      progressTrend: 'steady' as const,
+      strengths: '',
+      improvements: '',
+      familyCoordination: '',
+      teacherComment: '',
+      parentTip: '',
+      isApproved: true,
+    };
+
+    const updatedEval: WeeklyEvaluation = {
+      ...currentWeekEval,
+      ...data,
+      week,
+      isApproved: data.isApproved !== undefined ? data.isApproved : true,
+    };
+
+    // 1. Cập nhật giao diện ngay lập tức
     setStudents((prev) =>
       prev.map((student) => {
         if (student.id !== studentId) return student;
-        const currentWeekEval = student.weeklyEvaluations[week] || {
-          week,
-          title: `Tuần ${week}`,
-          academic: 'Tốt',
-          academicScore: 4,
-          discipline: 'Tốt',
-          disciplineScore: 5,
-          attitude: 'Tích cực',
-          attitudeScore: 4,
-          cooperation: 'Tốt',
-          cooperationScore: 4,
-          attendance: 'Tốt (Đúng giờ)',
-          attendanceScore: 5,
-          progressStars: 4,
-          progressTrend: 'steady',
-          strengths: '',
-          improvements: '',
-          familyCoordination: '',
-          teacherComment: '',
-          parentTip: '',
-          isApproved: true,
-        };
-        const updatedEval: WeeklyEvaluation = {
-          ...currentWeekEval,
-          ...data,
-          week,
-        };
-        targetUpdatedEval = updatedEval;
         return {
           ...student,
           weeklyEvaluations: {
@@ -582,29 +596,39 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
     );
 
-    if (targetUpdatedEval) {
-      updateStudentEvaluationInFirestore(studentId, week, targetUpdatedEval).catch((err) =>
-        console.warn('Lỗi lưu nhận xét lên Firestore:', err)
-      );
-    }
+    // 2. Lưu trực tiếp lên Cloud Firestore để máy phụ huynh nhận tức thì
+    updateStudentEvaluationInFirestore(studentId, week, updatedEval).catch((err) =>
+      console.warn('Lỗi lưu nhận xét lên Firestore:', err)
+    );
   };
 
   const batchApproveEvaluations = (week: number) => {
+    const currentList = studentsRef.current.length > 0 ? studentsRef.current : INITIAL_STUDENTS;
     const updates: { studentId: string; week: number; evaluation: WeeklyEvaluation }[] = [];
+
+    currentList.forEach((student) => {
+      const evalItem = student.weeklyEvaluations?.[week];
+      if (evalItem) {
+        updates.push({
+          studentId: student.id,
+          week,
+          evaluation: { ...evalItem, isApproved: true },
+        });
+      }
+    });
+
     setStudents((prev) =>
       prev.map((student) => {
-        const evalItem = student.weeklyEvaluations[week];
+        const evalItem = student.weeklyEvaluations?.[week];
         if (!evalItem) return student;
-        const approvedItem: WeeklyEvaluation = {
-          ...evalItem,
-          isApproved: true,
-        };
-        updates.push({ studentId: student.id, week, evaluation: approvedItem });
         return {
           ...student,
           weeklyEvaluations: {
             ...student.weeklyEvaluations,
-            [week]: approvedItem,
+            [week]: {
+              ...evalItem,
+              isApproved: true,
+            },
           },
         };
       })
@@ -647,252 +671,242 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addParentMessage = (studentId: string, content: string, sender?: string) => {
-    let targetStudent: Student | null = null;
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const studentParent = sender || s.parentName;
-        const now = new Date();
-        const dateStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} - ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-        const updated: Student = {
-          ...s,
-          parentMessages: [
-            ...s.parentMessages,
-            {
-              id: `msg-${Date.now()}`,
-              sender: studentParent,
-              date: dateStr,
-              content,
-            },
-          ],
-        };
-        targetStudent = updated;
-        return updated;
-      })
+    const currentStudent =
+      studentsRef.current.find((s) => s.id === studentId) ||
+      INITIAL_STUDENTS.find((s) => s.id === studentId);
+    if (!currentStudent) return;
+
+    const studentParent = sender || currentStudent.parentName;
+    const now = new Date();
+    const dateStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} - ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+    const updated: Student = {
+      ...currentStudent,
+      parentMessages: [
+        ...(currentStudent.parentMessages || []),
+        {
+          id: `msg-${Date.now()}`,
+          sender: studentParent,
+          date: dateStr,
+          content,
+        },
+      ],
+    };
+
+    setStudents((prev) => prev.map((s) => (s.id === studentId ? updated : s)));
+
+    saveStudentToFirestore(updated).catch((err) =>
+      console.warn('Lỗi lưu tin nhắn lên Firestore:', err)
     );
-    if (targetStudent) {
-      saveStudentToFirestore(targetStudent).catch((err) =>
-        console.warn('Lỗi lưu tin nhắn lên Firestore:', err)
-      );
-    }
   };
 
   const replyParentMessage = (studentId: string, messageId: string, reply: string) => {
+    const currentStudent =
+      studentsRef.current.find((s) => s.id === studentId) ||
+      INITIAL_STUDENTS.find((s) => s.id === studentId);
+    if (!currentStudent) return;
+
     const now = new Date();
     const dateStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} - ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-    let targetStudent: Student | null = null;
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const updated: Student = {
-          ...s,
-          parentMessages: s.parentMessages.map((msg) => {
-            if (msg.id !== messageId) return msg;
-            return {
-              ...msg,
-              reply,
-              repliedAt: dateStr,
-            };
-          }),
+    const updated: Student = {
+      ...currentStudent,
+      parentMessages: (currentStudent.parentMessages || []).map((msg) => {
+        if (msg.id !== messageId) return msg;
+        return {
+          ...msg,
+          reply,
+          repliedAt: dateStr,
         };
-        targetStudent = updated;
-        return updated;
-      })
+      }),
+    };
+
+    setStudents((prev) => prev.map((s) => (s.id === studentId ? updated : s)));
+
+    saveStudentToFirestore(updated).catch((err) =>
+      console.warn('Lỗi lưu phản hồi tin nhắn lên Firestore:', err)
     );
-    if (targetStudent) {
-      saveStudentToFirestore(targetStudent).catch((err) =>
-        console.warn('Lỗi lưu phản hồi tin nhắn lên Firestore:', err)
-      );
-    }
   };
 
   const addBadge = (studentId: string, badge: Omit<Badge, 'id'>) => {
-    let targetStudent: Student | null = null;
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const updated: Student = {
-          ...s,
-          badges: [
-            ...s.badges,
-            {
-              ...badge,
-              id: `badge-${Date.now()}`,
-            },
-          ],
-        };
-        targetStudent = updated;
-        return updated;
-      })
+    const currentStudent =
+      studentsRef.current.find((s) => s.id === studentId) ||
+      INITIAL_STUDENTS.find((s) => s.id === studentId);
+    if (!currentStudent) return;
+
+    const updated: Student = {
+      ...currentStudent,
+      badges: [
+        ...(currentStudent.badges || []),
+        {
+          ...badge,
+          id: `badge-${Date.now()}`,
+        },
+      ],
+    };
+
+    setStudents((prev) => prev.map((s) => (s.id === studentId ? updated : s)));
+
+    saveStudentToFirestore(updated).catch((err) =>
+      console.warn('Lỗi lưu huy hiệu lên Firestore:', err)
     );
-    if (targetStudent) {
-      saveStudentToFirestore(targetStudent).catch((err) =>
-        console.warn('Lỗi lưu huy hiệu lên Firestore:', err)
-      );
-    }
   };
 
   const addPortfolioItem = (studentId: string, item: Omit<PortfolioItem, 'id'>) => {
-    let targetStudent: Student | null = null;
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const updated: Student = {
-          ...s,
-          portfolio: [
-            ...s.portfolio,
-            {
-              ...item,
-              id: `port-${Date.now()}`,
-            },
-          ],
-        };
-        targetStudent = updated;
-        return updated;
-      })
+    const currentStudent =
+      studentsRef.current.find((s) => s.id === studentId) ||
+      INITIAL_STUDENTS.find((s) => s.id === studentId);
+    if (!currentStudent) return;
+
+    const updated: Student = {
+      ...currentStudent,
+      portfolio: [
+        ...(currentStudent.portfolio || []),
+        {
+          ...item,
+          id: `port-${Date.now()}`,
+        },
+      ],
+    };
+
+    setStudents((prev) => prev.map((s) => (s.id === studentId ? updated : s)));
+
+    saveStudentToFirestore(updated).catch((err) =>
+      console.warn('Lỗi lưu góc học tập lên Firestore:', err)
     );
-    if (targetStudent) {
-      saveStudentToFirestore(targetStudent).catch((err) =>
-        console.warn('Lỗi lưu góc học tập lên Firestore:', err)
-      );
-    }
   };
 
   const updatePersonalGoal = (studentId: string, goal: string) => {
-    let targetStudent: Student | null = null;
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const updated = { ...s, personalGoal: goal };
-        targetStudent = updated;
-        return updated;
-      })
+    const currentStudent =
+      studentsRef.current.find((s) => s.id === studentId) ||
+      INITIAL_STUDENTS.find((s) => s.id === studentId);
+    if (!currentStudent) return;
+
+    const updated: Student = { ...currentStudent, personalGoal: goal };
+
+    setStudents((prev) => prev.map((s) => (s.id === studentId ? updated : s)));
+
+    saveStudentToFirestore(updated).catch((err) =>
+      console.warn('Lỗi lưu mục tiêu lên Firestore:', err)
     );
-    if (targetStudent) {
-      saveStudentToFirestore(targetStudent).catch((err) =>
-        console.warn('Lỗi lưu mục tiêu lên Firestore:', err)
-      );
-    }
   };
 
   const toggleNeedsAttention = (studentId: string, reason?: string) => {
-    let targetStudent: Student | null = null;
-    setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const willNeed = !s.needsAttention;
-        const updated = {
-          ...s,
-          needsAttention: willNeed,
-          attentionReason: willNeed ? reason || 'Cần Cô Vân Anh và gia đình theo sát' : undefined,
-        };
-        targetStudent = updated;
-        return updated;
-      })
+    const currentStudent =
+      studentsRef.current.find((s) => s.id === studentId) ||
+      INITIAL_STUDENTS.find((s) => s.id === studentId);
+    if (!currentStudent) return;
+
+    const willNeed = !currentStudent.needsAttention;
+    const updated: Student = {
+      ...currentStudent,
+      needsAttention: willNeed,
+      attentionReason: willNeed ? reason || 'Cần Cô Vân Anh và gia đình theo sát' : undefined,
+    };
+
+    setStudents((prev) => prev.map((s) => (s.id === studentId ? updated : s)));
+
+    saveStudentToFirestore(updated).catch((err) =>
+      console.warn('Lỗi lưu trạng thái lưu ý lên Firestore:', err)
     );
-    if (targetStudent) {
-      saveStudentToFirestore(targetStudent).catch((err) =>
-        console.warn('Lỗi lưu trạng thái lưu ý lên Firestore:', err)
-      );
-    }
   };
 
   const updateLiteratureGrades = (studentId: string, data: Partial<LiteratureGradeRecord>) => {
-    let targetUpdatedGrades: LiteratureGradeRecord | null = null;
+    const currentStudent =
+      studentsRef.current.find((s) => s.id === studentId) ||
+      INITIAL_STUDENTS.find((s) => s.id === studentId);
+    if (!currentStudent) return;
+
+    const currentGrades = currentStudent.literatureGrades || {};
+    const merged: LiteratureGradeRecord = {
+      ...currentGrades,
+      ...data,
+      isApproved: data.isApproved !== undefined ? data.isApproved : (currentGrades.isApproved ?? true),
+    };
+
+    // Cho phép Cô giáo trực tiếp nhập hoặc sửa semesterAverage
+    let finalAvg = merged.semesterAverage;
+    if (data.isCustomAverage === false) {
+      merged.isCustomAverage = false;
+    }
+
+    if (data.semesterAverage !== undefined) {
+      finalAvg = data.semesterAverage;
+      merged.isCustomAverage = true;
+    } else if (!merged.isCustomAverage) {
+      // Tính lại ĐTB theo chuẩn hệ số:
+      // Miệng (hs 1), 15p (hs 1), 1 tiết (hs 2), Giữa kì (hs 2), Cuối kì (hs 3)
+      const weights: number[] = [];
+      const scores: number[] = [];
+      if (typeof merged.oral === 'number' && !isNaN(merged.oral)) { scores.push(merged.oral); weights.push(1); }
+      if (typeof merged.test15m1 === 'number' && !isNaN(merged.test15m1)) { scores.push(merged.test15m1); weights.push(1); }
+      if (typeof merged.test15m2 === 'number' && !isNaN(merged.test15m2)) { scores.push(merged.test15m2); weights.push(1); }
+      if (typeof merged.periodTest === 'number' && !isNaN(merged.periodTest)) { scores.push(merged.periodTest); weights.push(2); }
+      if (typeof merged.midterm === 'number' && !isNaN(merged.midterm)) { scores.push(merged.midterm); weights.push(2); }
+      if (typeof merged.finalExam === 'number' && !isNaN(merged.finalExam)) { scores.push(merged.finalExam); weights.push(3); }
+
+      if (scores.length > 0) {
+        const totalScore = scores.reduce((sum, s, idx) => sum + s * weights[idx], 0);
+        const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+        finalAvg = Math.round((totalScore / totalWeight) * 10) / 10;
+      } else {
+        finalAvg = null;
+      }
+    }
+
+    merged.semesterAverage = finalAvg;
+    merged.averageScore = finalAvg;
+    merged.oralScores = merged.oral !== null && merged.oral !== undefined ? [merged.oral] : [];
+    merged.fifteenMinScores = [merged.test15m1, merged.test15m2].filter((v): v is number => typeof v === 'number');
+    merged.onePeriodScores = merged.periodTest !== null && merged.periodTest !== undefined ? [merged.periodTest] : [];
+    merged.midTermScore = merged.midterm;
+    merged.finalTermScore = merged.finalExam !== null && merged.finalExam !== undefined ? merged.finalExam : null;
+    merged.teacherRemarks = merged.feedback;
+    merged.readingCompetency = merged.readingSkill;
+    merged.writingCompetency = merged.writingSkill;
+
+    // 1. Cập nhật giao diện ngay lập tức
     setStudents((prev) =>
-      prev.map((student) => {
-        if (student.id !== studentId) return student;
-        const currentGrades = student.literatureGrades || {};
-        const merged: LiteratureGradeRecord = { ...currentGrades, ...data };
-
-        // Allow Teacher Van Anh to manually set or edit semesterAverage directly
-        let finalAvg = merged.semesterAverage;
-        if (data.isCustomAverage === false) {
-          merged.isCustomAverage = false;
-        }
-
-        if (data.semesterAverage !== undefined) {
-          finalAvg = data.semesterAverage;
-          merged.isCustomAverage = true;
-        } else if (!merged.isCustomAverage) {
-          // Recalculate average automatically with standard weighting:
-          // Oral(1), 15m1(1), 15m2(1), Period(2), Midterm(2), FinalExam(3)
-          const weights: number[] = [];
-          const scores: number[] = [];
-          if (typeof merged.oral === 'number' && !isNaN(merged.oral)) { scores.push(merged.oral); weights.push(1); }
-          if (typeof merged.test15m1 === 'number' && !isNaN(merged.test15m1)) { scores.push(merged.test15m1); weights.push(1); }
-          if (typeof merged.test15m2 === 'number' && !isNaN(merged.test15m2)) { scores.push(merged.test15m2); weights.push(1); }
-          if (typeof merged.periodTest === 'number' && !isNaN(merged.periodTest)) { scores.push(merged.periodTest); weights.push(2); }
-          if (typeof merged.midterm === 'number' && !isNaN(merged.midterm)) { scores.push(merged.midterm); weights.push(2); }
-          if (typeof merged.finalExam === 'number' && !isNaN(merged.finalExam)) { scores.push(merged.finalExam); weights.push(3); }
-
-          if (scores.length > 0) {
-            const totalScore = scores.reduce((sum, s, idx) => sum + s * weights[idx], 0);
-            const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-            finalAvg = Math.round((totalScore / totalWeight) * 10) / 10;
-          } else {
-            finalAvg = null;
-          }
-        }
-
-        merged.semesterAverage = finalAvg;
-        // Keep aliases synchronized for parent view:
-        merged.averageScore = finalAvg;
-        merged.oralScores = merged.oral !== null && merged.oral !== undefined ? [merged.oral] : [];
-        merged.fifteenMinScores = [merged.test15m1, merged.test15m2].filter((v): v is number => typeof v === 'number');
-        merged.onePeriodScores = merged.periodTest !== null && merged.periodTest !== undefined ? [merged.periodTest] : [];
-        merged.midTermScore = merged.midterm;
-        merged.finalTermScore = merged.finalExam !== null && merged.finalExam !== undefined ? merged.finalExam : null;
-        merged.teacherRemarks = merged.feedback;
-        merged.readingCompetency = merged.readingSkill;
-        merged.writingCompetency = merged.writingSkill;
-
-        targetUpdatedGrades = merged;
-        return {
-          ...student,
-          literatureGrades: merged,
-        };
-      })
+      prev.map((s) => (s.id === studentId ? { ...s, literatureGrades: merged } : s))
     );
 
-    if (targetUpdatedGrades) {
-      updateStudentGradesInFirestore(studentId, targetUpdatedGrades).catch((err) =>
-        console.warn('Lỗi lưu điểm lên Firestore:', err)
-      );
-    }
+    // 2. Lưu trực tiếp lên Cloud Firestore để máy phụ huynh đọc được ngay
+    updateStudentGradesInFirestore(studentId, merged).catch((err) =>
+      console.warn('Lỗi lưu điểm lên Firestore:', err)
+    );
   };
 
   const batchRecalculateLiteratureAverages = () => {
+    const currentList = studentsRef.current.length > 0 ? studentsRef.current : INITIAL_STUDENTS;
     const updates: { studentId: string; grades: LiteratureGradeRecord }[] = [];
-    setStudents((prev) =>
-      prev.map((student) => {
-        const currentGrades = student.literatureGrades || {};
-        const merged: LiteratureGradeRecord = { ...currentGrades, isCustomAverage: false };
-        const weights: number[] = [];
-        const scores: number[] = [];
-        if (typeof merged.oral === 'number' && !isNaN(merged.oral)) { scores.push(merged.oral); weights.push(1); }
-        if (typeof merged.test15m1 === 'number' && !isNaN(merged.test15m1)) { scores.push(merged.test15m1); weights.push(1); }
-        if (typeof merged.test15m2 === 'number' && !isNaN(merged.test15m2)) { scores.push(merged.test15m2); weights.push(1); }
-        if (typeof merged.periodTest === 'number' && !isNaN(merged.periodTest)) { scores.push(merged.periodTest); weights.push(2); }
-        if (typeof merged.midterm === 'number' && !isNaN(merged.midterm)) { scores.push(merged.midterm); weights.push(2); }
-        if (typeof merged.finalExam === 'number' && !isNaN(merged.finalExam)) { scores.push(merged.finalExam); weights.push(3); }
 
-        let calculatedAvg: number | null = null;
-        if (scores.length > 0) {
-          const totalScore = scores.reduce((sum, s, idx) => sum + s * weights[idx], 0);
-          const totalWeight = weights.reduce((sum, w) => sum + w, 0);
-          calculatedAvg = Math.round((totalScore / totalWeight) * 10) / 10;
-        }
+    const updatedStudents = currentList.map((student) => {
+      const currentGrades = student.literatureGrades || {};
+      const merged: LiteratureGradeRecord = { ...currentGrades, isCustomAverage: false };
+      const weights: number[] = [];
+      const scores: number[] = [];
+      if (typeof merged.oral === 'number' && !isNaN(merged.oral)) { scores.push(merged.oral); weights.push(1); }
+      if (typeof merged.test15m1 === 'number' && !isNaN(merged.test15m1)) { scores.push(merged.test15m1); weights.push(1); }
+      if (typeof merged.test15m2 === 'number' && !isNaN(merged.test15m2)) { scores.push(merged.test15m2); weights.push(1); }
+      if (typeof merged.periodTest === 'number' && !isNaN(merged.periodTest)) { scores.push(merged.periodTest); weights.push(2); }
+      if (typeof merged.midterm === 'number' && !isNaN(merged.midterm)) { scores.push(merged.midterm); weights.push(2); }
+      if (typeof merged.finalExam === 'number' && !isNaN(merged.finalExam)) { scores.push(merged.finalExam); weights.push(3); }
 
-        merged.semesterAverage = calculatedAvg;
-        merged.averageScore = calculatedAvg;
-        updates.push({ studentId: student.id, grades: merged });
-        return {
-          ...student,
-          literatureGrades: merged,
-        };
-      })
-    );
+      let calculatedAvg: number | null = null;
+      if (scores.length > 0) {
+        const totalScore = scores.reduce((sum, s, idx) => sum + s * weights[idx], 0);
+        const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+        calculatedAvg = Math.round((totalScore / totalWeight) * 10) / 10;
+      }
+
+      merged.semesterAverage = calculatedAvg;
+      merged.averageScore = calculatedAvg;
+      updates.push({ studentId: student.id, grades: merged });
+      return {
+        ...student,
+        literatureGrades: merged,
+      };
+    });
+
+    setStudents(updatedStudents);
 
     if (updates.length > 0) {
       batchUpdateStudentsGradesInFirestore(updates).catch((err) =>
@@ -902,21 +916,23 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const batchApproveLiteratureGrades = (approved: boolean) => {
+    const currentList = studentsRef.current.length > 0 ? studentsRef.current : INITIAL_STUDENTS;
     const updates: { studentId: string; grades: LiteratureGradeRecord }[] = [];
-    setStudents((prev) =>
-      prev.map((student) => {
-        const currentLit = student.literatureGrades || {};
-        const updatedGrades: LiteratureGradeRecord = {
-          ...currentLit,
-          isApproved: approved,
-        };
-        updates.push({ studentId: student.id, grades: updatedGrades });
-        return {
-          ...student,
-          literatureGrades: updatedGrades,
-        };
-      })
-    );
+
+    const updatedStudents = currentList.map((student) => {
+      const currentLit = student.literatureGrades || {};
+      const updatedGrades: LiteratureGradeRecord = {
+        ...currentLit,
+        isApproved: approved,
+      };
+      updates.push({ studentId: student.id, grades: updatedGrades });
+      return {
+        ...student,
+        literatureGrades: updatedGrades,
+      };
+    });
+
+    setStudents(updatedStudents);
 
     if (updates.length > 0) {
       batchUpdateStudentsGradesInFirestore(updates).catch((err) =>
@@ -926,102 +942,96 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const toggleApproveLiteratureGrade = (studentId: string) => {
-    let targetUpdatedGrades: LiteratureGradeRecord | null = null;
+    const currentStudent =
+      studentsRef.current.find((s) => s.id === studentId) ||
+      INITIAL_STUDENTS.find((s) => s.id === studentId);
+    if (!currentStudent) return;
+
+    const currentLit = currentStudent.literatureGrades || {};
+    const updatedGrades: LiteratureGradeRecord = {
+      ...currentLit,
+      isApproved: !currentLit.isApproved,
+    };
+
     setStudents((prev) =>
-      prev.map((student) => {
-        if (student.id !== studentId) return student;
-        const currentLit = student.literatureGrades || {};
-        const updatedGrades: LiteratureGradeRecord = {
-          ...currentLit,
-          isApproved: !currentLit.isApproved,
-        };
-        targetUpdatedGrades = updatedGrades;
-        return {
-          ...student,
-          literatureGrades: updatedGrades,
-        };
-      })
+      prev.map((s) => (s.id === studentId ? { ...s, literatureGrades: updatedGrades } : s))
     );
 
-    if (targetUpdatedGrades) {
-      updateStudentGradesInFirestore(studentId, targetUpdatedGrades).catch((err) =>
-        console.warn('Lỗi phê duyệt điểm lên Firestore:', err)
-      );
-    }
+    updateStudentGradesInFirestore(studentId, updatedGrades).catch((err) =>
+      console.warn('Lỗi phê duyệt điểm lên Firestore:', err)
+    );
   };
 
   const clearAllGradesAndComments = () => {
-    const cleanedStudentsList: Student[] = [];
-    setStudents((prev) =>
-      prev.map((student) => {
-        const blankLit: LiteratureGradeRecord = {
-          oral: null,
-          test15m1: null,
-          test15m2: null,
-          periodTest: null,
-          midterm: null,
-          finalExam: null,
-          semesterAverage: null,
-          averageScore: null,
-          isCustomAverage: false,
+    const currentList = studentsRef.current.length > 0 ? studentsRef.current : INITIAL_STUDENTS;
+    const cleanedStudentsList: Student[] = currentList.map((student) => {
+      const blankLit: LiteratureGradeRecord = {
+        oral: null,
+        test15m1: null,
+        test15m2: null,
+        periodTest: null,
+        midterm: null,
+        finalExam: null,
+        semesterAverage: null,
+        averageScore: null,
+        isCustomAverage: false,
+        isApproved: false,
+        feedback: '',
+        teacherRemarks: '',
+        writingSkill: '',
+        readingSkill: '',
+        oralSkill: '',
+        oralScores: [],
+        fifteenMinScores: [],
+        onePeriodScores: [],
+        midTermScore: null,
+        finalTermScore: null,
+        readingCompetency: '',
+        writingCompetency: '',
+        speakingListeningCompetency: '',
+      };
+
+      const cleanedEvals: Record<number, WeeklyEvaluation> = {};
+      Object.entries(student.weeklyEvaluations || {}).forEach(([wStr, ev]) => {
+        const evalObj = ev as WeeklyEvaluation;
+        const w = Number(wStr);
+        cleanedEvals[w] = {
+          ...evalObj,
+          academic: 'Chưa đánh giá',
+          academicScore: 0,
+          discipline: 'Chưa đánh giá',
+          disciplineScore: 0,
+          attitude: 'Chưa đánh giá',
+          attitudeScore: 0,
+          cooperation: 'Chưa đánh giá',
+          cooperationScore: 0,
+          progressStars: 0,
+          progressTrend: 'steady',
+          strengths: '',
+          improvements: '',
+          familyCoordination: '',
+          parentTip: '',
+          teacherComment: '',
+          subjectNotes: { math: '', literature: '', english: '' },
+          literatureWeekly: {
+            grade: null,
+            gradeType: '',
+            comment: '',
+            readingLevel: '',
+            writingLevel: '',
+          },
           isApproved: false,
-          feedback: '',
-          teacherRemarks: '',
-          writingSkill: '',
-          readingSkill: '',
-          oralSkill: '',
-          oralScores: [],
-          fifteenMinScores: [],
-          onePeriodScores: [],
-          midTermScore: null,
-          finalTermScore: null,
-          readingCompetency: '',
-          writingCompetency: '',
-          speakingListeningCompetency: '',
         };
+      });
 
-        const cleanedEvals: Record<number, WeeklyEvaluation> = {};
-        Object.entries(student.weeklyEvaluations || {}).forEach(([wStr, ev]) => {
-          const evalObj = ev as WeeklyEvaluation;
-          const w = Number(wStr);
-          cleanedEvals[w] = {
-            ...evalObj,
-            academic: 'Chưa đánh giá',
-            academicScore: 0,
-            discipline: 'Chưa đánh giá',
-            disciplineScore: 0,
-            attitude: 'Chưa đánh giá',
-            attitudeScore: 0,
-            cooperation: 'Chưa đánh giá',
-            cooperationScore: 0,
-            progressStars: 0,
-            progressTrend: 'steady',
-            strengths: '',
-            improvements: '',
-            familyCoordination: '',
-            parentTip: '',
-            teacherComment: '',
-            subjectNotes: { math: '', literature: '', english: '' },
-            literatureWeekly: {
-              grade: null,
-              gradeType: '',
-              comment: '',
-              readingLevel: '',
-              writingLevel: '',
-            },
-            isApproved: false,
-          };
-        });
+      return {
+        ...student,
+        literatureGrades: blankLit,
+        weeklyEvaluations: cleanedEvals,
+      };
+    });
 
-        const cleanedStudent: Student = {
-          ...student,
-          literatureGrades: blankLit,
-          weeklyEvaluations: cleanedEvals,
-        };
-        cleanedStudentsList.push(cleanedStudent);
-        return cleanedStudent;
-      })
-    );
+    setStudents(cleanedStudentsList);
 
     if (cleanedStudentsList.length > 0) {
       seedInitialStudentsToFirestore(cleanedStudentsList).catch((err) =>
@@ -1031,73 +1041,71 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const clearStudentGradesAndComments = (studentId: string) => {
-    let targetCleanedStudent: Student | null = null;
-    setStudents((prev) =>
-      prev.map((student) => {
-        if (student.id !== studentId) return student;
+    const currentStudent =
+      studentsRef.current.find((s) => s.id === studentId) ||
+      INITIAL_STUDENTS.find((s) => s.id === studentId);
+    if (!currentStudent) return;
 
-        const blankLit: LiteratureGradeRecord = {
-          oral: null,
-          test15m1: null,
-          test15m2: null,
-          periodTest: null,
-          midterm: null,
-          finalExam: null,
-          semesterAverage: null,
-          averageScore: null,
-          isCustomAverage: false,
-          feedback: '',
-          teacherRemarks: '',
-          writingSkill: '',
-          readingSkill: '',
-          oralSkill: '',
-          oralScores: [],
-          fifteenMinScores: [],
-          onePeriodScores: [],
-          midTermScore: null,
-          finalTermScore: null,
-          readingCompetency: '',
-          writingCompetency: '',
-          speakingListeningCompetency: '',
-        };
+    const blankLit: LiteratureGradeRecord = {
+      oral: null,
+      test15m1: null,
+      test15m2: null,
+      periodTest: null,
+      midterm: null,
+      finalExam: null,
+      semesterAverage: null,
+      averageScore: null,
+      isCustomAverage: false,
+      isApproved: false,
+      feedback: '',
+      teacherRemarks: '',
+      writingSkill: '',
+      readingSkill: '',
+      oralSkill: '',
+      oralScores: [],
+      fifteenMinScores: [],
+      onePeriodScores: [],
+      midTermScore: null,
+      finalTermScore: null,
+      readingCompetency: '',
+      writingCompetency: '',
+      speakingListeningCompetency: '',
+    };
 
-        const cleanedEvals: Record<number, WeeklyEvaluation> = {};
-        Object.entries(student.weeklyEvaluations || {}).forEach(([wStr, ev]) => {
-          const evalObj = ev as WeeklyEvaluation;
-          const w = Number(wStr);
-          cleanedEvals[w] = {
-            ...evalObj,
-            teacherComment: '',
-            strengths: '',
-            improvements: '',
-            familyCoordination: '',
-            parentTip: '',
-            subjectNotes: { math: '', literature: '', english: '' },
-            literatureWeekly: {
-              grade: null,
-              gradeType: '',
-              comment: '',
-              readingLevel: '',
-              writingLevel: '',
-            },
-          };
-        });
+    const cleanedEvals: Record<number, WeeklyEvaluation> = {};
+    Object.entries(currentStudent.weeklyEvaluations || {}).forEach(([wStr, ev]) => {
+      const evalObj = ev as WeeklyEvaluation;
+      const w = Number(wStr);
+      cleanedEvals[w] = {
+        ...evalObj,
+        teacherComment: '',
+        strengths: '',
+        improvements: '',
+        familyCoordination: '',
+        parentTip: '',
+        subjectNotes: { math: '', literature: '', english: '' },
+        literatureWeekly: {
+          grade: null,
+          gradeType: '',
+          comment: '',
+          readingLevel: '',
+          writingLevel: '',
+        },
+        isApproved: false,
+      };
+    });
 
-        const cleaned = {
-          ...student,
-          literatureGrades: blankLit,
-          weeklyEvaluations: cleanedEvals,
-        };
-        targetCleanedStudent = cleaned;
-        return cleaned;
-      })
+    const cleanedStudent: Student = {
+      ...currentStudent,
+      literatureGrades: blankLit,
+      weeklyEvaluations: cleanedEvals,
+    };
+
+    setStudents((prev) => prev.map((s) => (s.id === studentId ? cleanedStudent : s)));
+
+    saveStudentToFirestore(cleanedStudent).catch((err) =>
+      console.warn('Lỗi làm mới dữ liệu học sinh trên Firestore:', err)
     );
-
-    if (targetCleanedStudent) {
-      saveStudentToFirestore(targetCleanedStudent).catch((err) =>
-        console.warn('Lỗi làm mới dữ liệu học sinh trên Firestore:', err)
-      );
-    }
   };
 
   const addLessonContent = (content: Omit<LiteratureLessonContent, 'id'>) => {

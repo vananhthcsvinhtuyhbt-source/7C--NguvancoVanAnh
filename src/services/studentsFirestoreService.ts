@@ -119,13 +119,20 @@ export const subscribeToFirestoreStudents = (
           mapById.set(docSnap.id, docSnap.data());
         });
 
-        // Kết hợp với danh sách đầy đủ 44 học sinh của lớp 7C
+        // Kết hợp với danh sách đầy đủ học sinh của lớp 7C
         const mergedList = INITIAL_STUDENTS.map((defaultStudent) => {
           const remoteData = mapById.get(defaultStudent.id);
           if (remoteData) {
             return normalizeStudentFromFirestore(remoteData, defaultStudent);
           }
           return defaultStudent;
+        });
+
+        // Bổ sung thêm học sinh nếu có bản ghi trên Firestore không trùng ID mặc định
+        snapshot.forEach((docSnap) => {
+          if (!INITIAL_STUDENTS.some((s) => s.id === docSnap.id)) {
+            mergedList.push(normalizeStudentFromFirestore(docSnap.data()));
+          }
         });
 
         onData(mergedList);

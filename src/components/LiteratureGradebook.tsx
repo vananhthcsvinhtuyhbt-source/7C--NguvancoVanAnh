@@ -139,6 +139,7 @@ export const LiteratureGradebook: React.FC = () => {
       writingSkill: formWritingSkill,
       readingSkill: formReadingSkill,
       speakingListeningCompetency: formSpeakingSkill,
+      isApproved: formIsApproved !== undefined ? formIsApproved : true,
     });
 
     setEditingStudent(null);
@@ -149,18 +150,18 @@ export const LiteratureGradebook: React.FC = () => {
   const handleInlineChange = (studentId: string, field: keyof LiteratureGradeRecord, value: string) => {
     const num = value === '' ? null : parseFloat(value);
     if (num !== null && (isNaN(num) || num < 0 || num > 10)) return;
-    updateLiteratureGrades(studentId, { [field]: num });
+    updateLiteratureGrades(studentId, { [field]: num, isApproved: true });
   };
 
   // Quick inline update for average
   const handleInlineAverageChange = (studentId: string, value: string) => {
     if (value === '') {
-      updateLiteratureGrades(studentId, { isCustomAverage: false });
+      updateLiteratureGrades(studentId, { isCustomAverage: false, isApproved: true });
       return;
     }
     const num = parseFloat(value);
     if (isNaN(num) || num < 0 || num > 10) return;
-    updateLiteratureGrades(studentId, { semesterAverage: num, isCustomAverage: true });
+    updateLiteratureGrades(studentId, { semesterAverage: num, isCustomAverage: true, isApproved: true });
   };
 
   // Reset student average to formula
@@ -360,6 +361,19 @@ export const LiteratureGradebook: React.FC = () => {
               Cần rèn ({countAverage})
             </button>
           </div>
+
+          {/* Công bố bảng điểm cho Phụ huynh */}
+          <button
+            onClick={() => {
+              batchApproveLiteratureGrades(true);
+              showToast('Đã phê duyệt và công bố bảng điểm môn Ngữ Văn cho toàn bộ phụ huynh!');
+            }}
+            className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+            title="Công bố toàn bộ bảng điểm cho phụ huynh học sinh xem trên điện thoại"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Công bố bảng điểm cho PH</span>
+          </button>
 
           {/* Batch Recalculate Button */}
           <button

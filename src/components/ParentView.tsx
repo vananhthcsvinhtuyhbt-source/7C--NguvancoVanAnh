@@ -43,7 +43,7 @@ export const ParentView: React.FC = () => {
     );
   }
 
-  const currentEval = currentStudent.weeklyEvaluations[selectedWeek] || currentStudent.weeklyEvaluations[weeks[0]?.week || 1];
+  const currentEval = currentStudent.weeklyEvaluations?.[selectedWeek] || currentStudent.weeklyEvaluations?.[weeks[0]?.week || 1];
   const litGrades = currentStudent.literatureGrades || {};
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -162,7 +162,17 @@ export const ParentView: React.FC = () => {
         {activeTab === 'grades' && (
           <div className="space-y-6 animate-in fade-in duration-150">
             {(() => {
-              const isApproved = !!litGrades.isApproved;
+              const hasAnyScore =
+                (litGrades.oral !== null && litGrades.oral !== undefined) ||
+                (litGrades.test15m1 !== null && litGrades.test15m1 !== undefined) ||
+                (litGrades.test15m2 !== null && litGrades.test15m2 !== undefined) ||
+                (litGrades.periodTest !== null && litGrades.periodTest !== undefined) ||
+                (litGrades.midterm !== null && litGrades.midterm !== undefined) ||
+                (litGrades.finalExam !== null && litGrades.finalExam !== undefined) ||
+                (litGrades.semesterAverage !== null && litGrades.semesterAverage !== undefined);
+
+              const isApproved =
+                litGrades.isApproved === true || (litGrades.isApproved !== false && hasAnyScore);
 
               return (
                 <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs">
@@ -506,9 +516,9 @@ export const ParentView: React.FC = () => {
                 <div className="flex items-center gap-2 mb-2 text-indigo-900 font-bold text-sm">
                   <span>🌸</span> Lời nhận xét của Cô Vân Anh:
                 </div>
-                {currentEval?.teacherFeedback ? (
-                  <p className="text-sm sm:text-base text-slate-800 italic leading-relaxed pl-3 border-l-2 border-indigo-600">
-                    "{currentEval.teacherFeedback}"
+                {(currentEval?.teacherComment || (currentEval as any)?.teacherFeedback) ? (
+                  <p className="text-sm sm:text-base text-slate-800 italic leading-relaxed pl-3 border-l-2 border-indigo-600 whitespace-pre-line">
+                    "{currentEval?.teacherComment || (currentEval as any)?.teacherFeedback}"
                   </p>
                 ) : (
                   <p className="text-xs sm:text-sm text-indigo-900/80 italic pl-3 border-l-2 border-indigo-400 leading-relaxed">
@@ -516,6 +526,42 @@ export const ParentView: React.FC = () => {
                   </p>
                 )}
               </div>
+
+              {/* Chi tiết điểm mạnh và lời khuyên phụ huynh */}
+              {(currentEval?.strengths || currentEval?.parentTip || currentEval?.familyCoordination) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {currentEval?.strengths && (
+                    <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5 mb-1">
+                        🌟 Khen ngợi & Điểm mạnh của con
+                      </span>
+                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                        {currentEval.strengths}
+                      </p>
+                    </div>
+                  )}
+                  {currentEval?.parentTip && (
+                    <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200">
+                      <span className="text-xs font-bold text-amber-800 flex items-center gap-1.5 mb-1">
+                        💡 Gợi ý phối hợp cùng gia đình
+                      </span>
+                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                        {currentEval.parentTip}
+                      </p>
+                    </div>
+                  )}
+                  {currentEval?.familyCoordination && !currentEval?.parentTip && (
+                    <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200">
+                      <span className="text-xs font-bold text-blue-800 flex items-center gap-1.5 mb-1">
+                        🤝 Phối hợp gia đình
+                      </span>
+                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                        {currentEval.familyCoordination}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 3 Tiêu chí đánh giá */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
