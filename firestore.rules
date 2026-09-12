@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Sổ liên lạc Lớp 7C - Cho phép đọc và ghi dữ liệu học sinh, điểm, nhận xét và thông báo
+    match /students/{studentId} {
+      allow read, write: if true;
+    }
+    match /announcements/{announcementId} {
+      allow read, write: if true;
+    }
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

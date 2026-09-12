@@ -18,6 +18,20 @@ import {
   INITIAL_LESSON_CONTENTS,
   INITIAL_WEEKS,
 } from '../data/mockData';
+import {
+  subscribeToFirestoreAnnouncements,
+  addAnnouncementToFirestore,
+  deleteAnnouncementFromFirestore,
+} from '../services/announcementsService';
+import {
+  subscribeToFirestoreStudents,
+  updateStudentGradesInFirestore,
+  updateStudentEvaluationInFirestore,
+  batchUpdateStudentsGradesInFirestore,
+  batchUpdateStudentsEvaluationsInFirestore,
+  saveStudentToFirestore,
+  seedInitialStudentsToFirestore,
+} from '../services/studentsFirestoreService';
 
 interface AddWeekParams {
   week: number;
@@ -62,7 +76,7 @@ interface ClassContextType {
   updateGradeColumnNames: (names: Partial<GradeColumnNames>) => void;
   clearAllGradesAndComments: () => void;
   clearStudentGradesAndComments: (studentId: string) => void;
-  addParentMessage: (studentId: string, content: string) => void;
+  addParentMessage: (studentId: string, content: string, sender?: string) => void;
   replyParentMessage: (studentId: string, messageId: string, reply: string) => void;
   addBadge: (studentId: string, badge: Omit<Badge, 'id'>) => void;
   addPortfolioItem: (studentId: string, item: Omit<PortfolioItem, 'id'>) => void;
@@ -76,8 +90,6 @@ interface ClassContextType {
 
 const ClassContext = createContext<ClassContextType | undefined>(undefined);
 
-const STORAGE_STUDENTS_KEY = 'so_lien_lac_7c_students_v4';
-const STORAGE_ANNOUNCEMENTS_KEY = 'so_lien_lac_7c_announcements_v2';
 const STORAGE_LESSONS_KEY = 'so_lien_lac_7c_lessons_v1';
 const STORAGE_WEEKS_KEY = 'so_lien_lac_7c_weeks_v1';
 const STORAGE_CLASS_INFO_KEY = 'so_lien_lac_7c_class_info_v1';
@@ -163,51 +175,70 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return INITIAL_WEEKS;
   });
 
-  const [students, setStudents] = useState<Student[]>(() => {
+  // Dữ liệu Học sinh, Điểm số & Nhận xét được lưu trữ và đồng bộ thời gian thực qua Cloud Firestore.
+  // Tuyệt đối KHÔNG dùng localStorage cho Điểm và Nhận xét (đồng bộ tức thì giữa máy cô giáo và máy phụ huynh).
+  const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
+
+  // Đồng bộ học sinh, điểm số & nhận xét từ Cloud Firestore
+  useEffect(() => {
+    // 1. Thu thập dữ liệu cũ nếu cô giáo từng nhập trên máy này trước khi có Firestore
+    let legacyLocalStudents: Student[] | null = null;
     try {
-      const saved = localStorage.getItem(STORAGE_STUDENTS_KEY);
+      const saved = localStorage.getItem('so_lien_lac_7c_students_v4');
       if (saved) {
-        const parsed: Student[] = JSON.parse(saved);
-        return parsed.map((s, idx) => {
-          const init = INITIAL_STUDENTS[idx] || INITIAL_STUDENTS.find((i) => i.id === s.id);
-          return {
-            ...s,
-            literatureGrades: s.literatureGrades ? {
-              ...s.literatureGrades,
-              isApproved: s.literatureGrades.isApproved ?? false,
-            } : init?.literatureGrades || {
-              oral: null,
-              test15m1: null,
-              test15m2: null,
-              periodTest: null,
-              midterm: null,
-              finalExam: null,
-              semesterAverage: null,
-              averageScore: null,
-              isApproved: false,
-              feedback: '',
-              teacherRemarks: '',
-              writingSkill: '',
-              readingSkill: '',
-            },
-          };
-        });
+        legacyLocalStudents = JSON.parse(saved);
       }
     } catch (e) {
-      console.error('Failed to load saved students:', e);
+      console.warn('Không thể đọc dữ liệu cũ:', e);
     }
-    return INITIAL_STUDENTS;
-  });
 
-  const [announcements, setAnnouncements] = useState<Announcement[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_ANNOUNCEMENTS_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Failed to load saved announcements:', e);
-    }
-    return INITIAL_ANNOUNCEMENTS;
-  });
+    // 2. Lắng nghe thay đổi thời gian thực từ Cloud Firestore
+    const unsubscribe = subscribeToFirestoreStudents(
+      (remoteStudents) => {
+        setStudents(remoteStudents);
+        try {
+          localStorage.removeItem('so_lien_lac_7c_students_v4');
+        } catch {
+          // ignore
+        }
+      },
+      () => {
+        // Bộ sưu tập trên Firestore đang trống -> Khởi tạo dữ liệu lớp 7C lên Cloud
+        const toSeed = legacyLocalStudents && legacyLocalStudents.length > 0 ? legacyLocalStudents : INITIAL_STUDENTS;
+        seedInitialStudentsToFirestore(toSeed);
+        setStudents(toSeed);
+        try {
+          localStorage.removeItem('so_lien_lac_7c_students_v4');
+        } catch {
+          // ignore
+        }
+      },
+      (error) => {
+        console.warn('Lỗi kết nối Firestore Students:', error);
+      }
+    );
+
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
+
+  // Dữ liệu Thông báo & Dặn dò được lưu trữ và đồng bộ thời gian thực qua Cloud Firestore (dùng chung cho mọi thiết bị)
+  const [announcements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
+
+  useEffect(() => {
+    // Lắng nghe Cloud Firestore theo thời gian thực
+    const unsubscribe = subscribeToFirestoreAnnouncements((items) => {
+      setAnnouncements(items);
+    });
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
 
   const [lessonContents, setLessonContents] = useState<LiteratureLessonContent[]>(() => {
     try {
@@ -227,23 +258,6 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedWeek, setSelectedWeek] = useState<number>(() => {
     return classInfo.currentWeek || 4;
   });
-
-  // Sync with localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_STUDENTS_KEY, JSON.stringify(students));
-    } catch (e) {
-      console.warn('Storage quota exceeded or error:', e);
-    }
-  }, [students]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_ANNOUNCEMENTS_KEY, JSON.stringify(announcements));
-    } catch (e) {
-      console.warn('Storage error:', e);
-    }
-  }, [announcements]);
 
   useEffect(() => {
     try {
@@ -315,9 +329,20 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateStudentInfo = (studentId: string, data: Partial<Student>) => {
+    let targetStudent: Student | null = null;
     setStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, ...data } : s))
+      prev.map((s) => {
+        if (s.id !== studentId) return s;
+        const updated = { ...s, ...data };
+        targetStudent = updated;
+        return updated;
+      })
     );
+    if (targetStudent) {
+      saveStudentToFirestore(targetStudent).catch((err) =>
+        console.warn('Lỗi lưu thông tin học sinh lên Firestore:', err)
+      );
+    }
   };
 
   const addWeek = (params: AddWeekParams) => {
@@ -515,6 +540,7 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateEvaluation = (studentId: string, week: number, data: Partial<WeeklyEvaluation>) => {
+    let targetUpdatedEval: WeeklyEvaluation | null = null;
     setStudents((prev) =>
       prev.map((student) => {
         if (student.id !== studentId) return student;
@@ -540,59 +566,95 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           parentTip: '',
           isApproved: true,
         };
+        const updatedEval: WeeklyEvaluation = {
+          ...currentWeekEval,
+          ...data,
+          week,
+        };
+        targetUpdatedEval = updatedEval;
         return {
           ...student,
           weeklyEvaluations: {
             ...student.weeklyEvaluations,
-            [week]: {
-              ...currentWeekEval,
-              ...data,
-            },
+            [week]: updatedEval,
           },
         };
       })
     );
+
+    if (targetUpdatedEval) {
+      updateStudentEvaluationInFirestore(studentId, week, targetUpdatedEval).catch((err) =>
+        console.warn('Lỗi lưu nhận xét lên Firestore:', err)
+      );
+    }
   };
 
   const batchApproveEvaluations = (week: number) => {
+    const updates: { studentId: string; week: number; evaluation: WeeklyEvaluation }[] = [];
     setStudents((prev) =>
       prev.map((student) => {
         const evalItem = student.weeklyEvaluations[week];
         if (!evalItem) return student;
+        const approvedItem: WeeklyEvaluation = {
+          ...evalItem,
+          isApproved: true,
+        };
+        updates.push({ studentId: student.id, week, evaluation: approvedItem });
         return {
           ...student,
           weeklyEvaluations: {
             ...student.weeklyEvaluations,
-            [week]: {
-              ...evalItem,
-              isApproved: true,
-            },
+            [week]: approvedItem,
           },
         };
       })
     );
+
+    if (updates.length > 0) {
+      batchUpdateStudentsEvaluationsInFirestore(updates).catch((err) =>
+        console.warn('Lỗi duyệt nhận xét lên Firestore:', err)
+      );
+    }
   };
 
-  const addAnnouncement = (newAnn: Omit<Announcement, 'id'>) => {
+  const addAnnouncement = async (newAnn: Omit<Announcement, 'id'>) => {
+    const tempId = `ann-${Date.now()}`;
     const item: Announcement = {
       ...newAnn,
-      id: `ann-${Date.now()}`,
+      id: tempId,
     };
+    // Cập nhật giao diện ngay lập tức
     setAnnouncements((prev) => [item, ...prev]);
+
+    try {
+      // Lưu vào Cloud Firestore dùng chung cho mọi thiết bị
+      await addAnnouncementToFirestore(newAnn);
+    } catch (err) {
+      console.warn('Lỗi khi thêm thông báo lên Firestore:', err);
+    }
   };
 
-  const deleteAnnouncement = (id: string) => {
+  const deleteAnnouncement = async (id: string) => {
+    // Cập nhật giao diện ngay lập tức
     setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+
+    try {
+      // Xóa trên Cloud Firestore
+      await deleteAnnouncementFromFirestore(id);
+    } catch (err) {
+      console.warn('Lỗi khi xóa thông báo trên Firestore:', err);
+    }
   };
 
-  const addParentMessage = (studentId: string, content: string) => {
+  const addParentMessage = (studentId: string, content: string, sender?: string) => {
+    let targetStudent: Student | null = null;
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id !== studentId) return s;
-        const studentParent = s.parentName;
+        const studentParent = sender || s.parentName;
         const now = new Date();
         const dateStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} - ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
-        return {
+        const updated: Student = {
           ...s,
           parentMessages: [
             ...s.parentMessages,
@@ -604,17 +666,25 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             },
           ],
         };
+        targetStudent = updated;
+        return updated;
       })
     );
+    if (targetStudent) {
+      saveStudentToFirestore(targetStudent).catch((err) =>
+        console.warn('Lỗi lưu tin nhắn lên Firestore:', err)
+      );
+    }
   };
 
   const replyParentMessage = (studentId: string, messageId: string, reply: string) => {
     const now = new Date();
     const dateStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')} - ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+    let targetStudent: Student | null = null;
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id !== studentId) return s;
-        return {
+        const updated: Student = {
           ...s,
           parentMessages: s.parentMessages.map((msg) => {
             if (msg.id !== messageId) return msg;
@@ -625,15 +695,23 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             };
           }),
         };
+        targetStudent = updated;
+        return updated;
       })
     );
+    if (targetStudent) {
+      saveStudentToFirestore(targetStudent).catch((err) =>
+        console.warn('Lỗi lưu phản hồi tin nhắn lên Firestore:', err)
+      );
+    }
   };
 
   const addBadge = (studentId: string, badge: Omit<Badge, 'id'>) => {
+    let targetStudent: Student | null = null;
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id !== studentId) return s;
-        return {
+        const updated: Student = {
           ...s,
           badges: [
             ...s.badges,
@@ -643,15 +721,23 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             },
           ],
         };
+        targetStudent = updated;
+        return updated;
       })
     );
+    if (targetStudent) {
+      saveStudentToFirestore(targetStudent).catch((err) =>
+        console.warn('Lỗi lưu huy hiệu lên Firestore:', err)
+      );
+    }
   };
 
   const addPortfolioItem = (studentId: string, item: Omit<PortfolioItem, 'id'>) => {
+    let targetStudent: Student | null = null;
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id !== studentId) return s;
-        return {
+        const updated: Student = {
           ...s,
           portfolio: [
             ...s.portfolio,
@@ -661,31 +747,58 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             },
           ],
         };
+        targetStudent = updated;
+        return updated;
       })
     );
+    if (targetStudent) {
+      saveStudentToFirestore(targetStudent).catch((err) =>
+        console.warn('Lỗi lưu góc học tập lên Firestore:', err)
+      );
+    }
   };
 
   const updatePersonalGoal = (studentId: string, goal: string) => {
+    let targetStudent: Student | null = null;
     setStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, personalGoal: goal } : s))
+      prev.map((s) => {
+        if (s.id !== studentId) return s;
+        const updated = { ...s, personalGoal: goal };
+        targetStudent = updated;
+        return updated;
+      })
     );
+    if (targetStudent) {
+      saveStudentToFirestore(targetStudent).catch((err) =>
+        console.warn('Lỗi lưu mục tiêu lên Firestore:', err)
+      );
+    }
   };
 
   const toggleNeedsAttention = (studentId: string, reason?: string) => {
+    let targetStudent: Student | null = null;
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id !== studentId) return s;
         const willNeed = !s.needsAttention;
-        return {
+        const updated = {
           ...s,
           needsAttention: willNeed,
           attentionReason: willNeed ? reason || 'Cần Cô Vân Anh và gia đình theo sát' : undefined,
         };
+        targetStudent = updated;
+        return updated;
       })
     );
+    if (targetStudent) {
+      saveStudentToFirestore(targetStudent).catch((err) =>
+        console.warn('Lỗi lưu trạng thái lưu ý lên Firestore:', err)
+      );
+    }
   };
 
   const updateLiteratureGrades = (studentId: string, data: Partial<LiteratureGradeRecord>) => {
+    let targetUpdatedGrades: LiteratureGradeRecord | null = null;
     setStudents((prev) =>
       prev.map((student) => {
         if (student.id !== studentId) return student;
@@ -734,15 +847,23 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         merged.readingCompetency = merged.readingSkill;
         merged.writingCompetency = merged.writingSkill;
 
+        targetUpdatedGrades = merged;
         return {
           ...student,
           literatureGrades: merged,
         };
       })
     );
+
+    if (targetUpdatedGrades) {
+      updateStudentGradesInFirestore(studentId, targetUpdatedGrades).catch((err) =>
+        console.warn('Lỗi lưu điểm lên Firestore:', err)
+      );
+    }
   };
 
   const batchRecalculateLiteratureAverages = () => {
+    const updates: { studentId: string; grades: LiteratureGradeRecord }[] = [];
     setStudents((prev) =>
       prev.map((student) => {
         const currentGrades = student.literatureGrades || {};
@@ -765,46 +886,72 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         merged.semesterAverage = calculatedAvg;
         merged.averageScore = calculatedAvg;
+        updates.push({ studentId: student.id, grades: merged });
         return {
           ...student,
           literatureGrades: merged,
         };
       })
     );
+
+    if (updates.length > 0) {
+      batchUpdateStudentsGradesInFirestore(updates).catch((err) =>
+        console.warn('Lỗi cập nhật ĐTB lên Firestore:', err)
+      );
+    }
   };
 
   const batchApproveLiteratureGrades = (approved: boolean) => {
+    const updates: { studentId: string; grades: LiteratureGradeRecord }[] = [];
     setStudents((prev) =>
       prev.map((student) => {
         const currentLit = student.literatureGrades || {};
+        const updatedGrades: LiteratureGradeRecord = {
+          ...currentLit,
+          isApproved: approved,
+        };
+        updates.push({ studentId: student.id, grades: updatedGrades });
         return {
           ...student,
-          literatureGrades: {
-            ...currentLit,
-            isApproved: approved,
-          },
+          literatureGrades: updatedGrades,
         };
       })
     );
+
+    if (updates.length > 0) {
+      batchUpdateStudentsGradesInFirestore(updates).catch((err) =>
+        console.warn('Lỗi duyệt điểm lên Firestore:', err)
+      );
+    }
   };
 
   const toggleApproveLiteratureGrade = (studentId: string) => {
+    let targetUpdatedGrades: LiteratureGradeRecord | null = null;
     setStudents((prev) =>
       prev.map((student) => {
         if (student.id !== studentId) return student;
         const currentLit = student.literatureGrades || {};
+        const updatedGrades: LiteratureGradeRecord = {
+          ...currentLit,
+          isApproved: !currentLit.isApproved,
+        };
+        targetUpdatedGrades = updatedGrades;
         return {
           ...student,
-          literatureGrades: {
-            ...currentLit,
-            isApproved: !currentLit.isApproved,
-          },
+          literatureGrades: updatedGrades,
         };
       })
     );
+
+    if (targetUpdatedGrades) {
+      updateStudentGradesInFirestore(studentId, targetUpdatedGrades).catch((err) =>
+        console.warn('Lỗi phê duyệt điểm lên Firestore:', err)
+      );
+    }
   };
 
   const clearAllGradesAndComments = () => {
+    const cleanedStudentsList: Student[] = [];
     setStudents((prev) =>
       prev.map((student) => {
         const blankLit: LiteratureGradeRecord = {
@@ -866,16 +1013,25 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
         });
 
-        return {
+        const cleanedStudent: Student = {
           ...student,
           literatureGrades: blankLit,
           weeklyEvaluations: cleanedEvals,
         };
+        cleanedStudentsList.push(cleanedStudent);
+        return cleanedStudent;
       })
     );
+
+    if (cleanedStudentsList.length > 0) {
+      seedInitialStudentsToFirestore(cleanedStudentsList).catch((err) =>
+        console.warn('Lỗi làm mới điểm và nhận xét lên Firestore:', err)
+      );
+    }
   };
 
   const clearStudentGradesAndComments = (studentId: string) => {
+    let targetCleanedStudent: Student | null = null;
     setStudents((prev) =>
       prev.map((student) => {
         if (student.id !== studentId) return student;
@@ -927,13 +1083,21 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
         });
 
-        return {
+        const cleaned = {
           ...student,
           literatureGrades: blankLit,
           weeklyEvaluations: cleanedEvals,
         };
+        targetCleanedStudent = cleaned;
+        return cleaned;
       })
     );
+
+    if (targetCleanedStudent) {
+      saveStudentToFirestore(targetCleanedStudent).catch((err) =>
+        console.warn('Lỗi làm mới dữ liệu học sinh trên Firestore:', err)
+      );
+    }
   };
 
   const addLessonContent = (content: Omit<LiteratureLessonContent, 'id'>) => {
@@ -959,9 +1123,10 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const resetAllData = () => {
-    localStorage.removeItem(STORAGE_STUDENTS_KEY);
-    localStorage.removeItem(STORAGE_ANNOUNCEMENTS_KEY);
     localStorage.removeItem(STORAGE_LESSONS_KEY);
+    seedInitialStudentsToFirestore(INITIAL_STUDENTS).catch((err) =>
+      console.warn('Lỗi đặt lại học sinh trên Firestore:', err)
+    );
     setStudents(INITIAL_STUDENTS);
     setAnnouncements(INITIAL_ANNOUNCEMENTS);
     setLessonContents(INITIAL_LESSON_CONTENTS);

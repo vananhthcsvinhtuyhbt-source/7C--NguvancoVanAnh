@@ -231,10 +231,10 @@ export const ParentView: React.FC = () => {
                         <Lock className="w-3.5 h-3.5" /> Bảng điểm đang trong quá trình chấm & cập nhật
                       </div>
                       <h3 className="text-base sm:text-lg font-bold text-slate-900">
-                        Tên điểm và điểm số hiện đang để trống
+                        🌸 Con đang chăm ngoan học tập và tiến bộ từng ngày
                       </h3>
                       <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
-                        Cô Vân Anh đang chấm bài và hoàn thiện điểm môn Ngữ Văn cho lớp 7C. Điểm số và tên các cột kiểm tra chỉ được công bố sau khi Cô giáo chính thức phê duyệt.
+                        Bố mẹ yên tâm nhé, con đang học tập rất tích cực trên lớp. Cô Vân Anh đang hoàn thiện việc chấm bài và sẽ gửi bảng điểm cùng lời nhận xét chi tiết tới gia đình trong thời gian sớm nhất!
                       </p>
 
                       <div className="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left">
@@ -511,8 +511,8 @@ export const ParentView: React.FC = () => {
                     "{currentEval.teacherFeedback}"
                   </p>
                 ) : (
-                  <p className="text-xs sm:text-sm text-slate-400 italic pl-3 border-l-2 border-slate-300">
-                    Cô giáo chưa nhập nhận xét cho tuần này. Đang cập nhật...
+                  <p className="text-xs sm:text-sm text-indigo-900/80 italic pl-3 border-l-2 border-indigo-400 leading-relaxed">
+                    🌱 Con đang chăm ngoan học tập và rèn luyện rất tốt trên lớp. Cô Vân Anh đang hoàn thiện lời nhận xét tuần và sẽ gửi đến bố mẹ sớm nhất nhé!
                   </p>
                 )}
               </div>
