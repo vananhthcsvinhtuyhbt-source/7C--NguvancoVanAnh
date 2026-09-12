@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "Student record with literature grades, weekly evaluations, and parent communications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique student identifier" },
+        "code": { "type": "string", "description": "Student code e.g. 7C01" },
+        "name": { "type": "string", "description": "Full student name" },
+        "dob": { "type": "string", "description": "Date of birth" },
+        "gender": { "type": "string", "enum": ["Nam", "Nữ"] },
+        "parentName": { "type": "string", "description": "Parent name" },
+        "parentPhone": { "type": "string", "description": "Parent phone number" },
+        "avatarColor": { "type": "string", "description": "Avatar badge color" },
+        "avatarIcon": { "type": "string", "description": "Avatar icon text" },
+        "literatureGrades": { "type": "object", "description": "Literature grade record with oral, 15m, midterm, final, and average" },
+        "weeklyEvaluations": { "type": "object", "description": "Map of week number to weekly evaluation object" },
+        "badges": { "type": "array", "description": "List of awarded badges" },
+        "portfolio": { "type": "array", "description": "List of student portfolio items" },
+        "parentMessages": { "type": "array", "description": "Two-way communication thread between parent/student and teacher" },
+        "personalGoal": { "type": "string", "description": "Student learning goal" },
+        "needsAttention": { "type": "boolean", "description": "Special attention flag by teacher" },
+        "attentionReason": { "type": "string", "description": "Reason for teacher special attention" },
+        "updatedAt": { "type": "string", "description": "Timestamp of last update" }
+      },
+      "required": ["id", "name"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Classroom announcement, reminder, or homework bulletin posted by the teacher",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique announcement identifier" },
+        "title": { "type": "string", "description": "Announcement title" },
+        "content": { "type": "string", "description": "Full announcement text" },
+        "category": { "type": "string", "enum": ["important", "reminder", "achievement"] },
+        "date": { "type": "string", "description": "Display date" },
+        "author": { "type": "string", "description": "Author name" },
+        "pinned": { "type": "boolean", "description": "Pinned to top" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["title", "content"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "Literature lesson content, key knowledge, and weekly homework assignments",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique lesson identifier" },
+        "week": { "type": "number", "description": "Week number" },
+        "title": { "type": "string", "description": "Lesson title or literature work" },
+        "topic": { "type": "string", "description": "Unit or topic name" },
+        "keyKnowledge": { "type": "string", "description": "Key literature knowledge and Vietnamese practice" },
+        "homework": { "type": "string", "description": "Homework instructions and home preparation" },
+        "sampleExcerpt": { "type": "string", "description": "Sample essay excerpt or reference material" },
+        "updatedDate": { "type": "string", "description": "Last updated date string" },
+        "author": { "type": "string", "description": "Teacher author name" }
+      },
+      "required": ["week", "title", "topic"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Class configuration, academic weeks schedule, and custom grade column labels",
+      "type": "object",
+      "properties": {
+        "classInfo": { "type": "object", "description": "Class details and teacher name" },
+        "weeks": { "type": "array", "description": "List of academic weeks with dates and focus themes" },
+        "gradeColumnNames": { "type": "object", "description": "Custom labels for grade columns" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
+      },
+      "required": ["classInfo", "weeks"]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Collection of student academic records and evaluations"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "Collection of class-wide reminders and notices"
+    },
+    "/lessons/{lessonId}": {
+      "schema": "Lesson",
+      "description": "Collection of weekly literature curriculum and homework"
+    },
+    "/app_config/{configId}": {
+      "schema": "AppConfig",
+      "description": "Shared application configuration and schedule settings"
+    }
+  }
+}

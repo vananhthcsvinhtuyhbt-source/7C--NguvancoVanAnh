@@ -65,9 +65,9 @@ export const TeacherView: React.FC = () => {
     lockTeacher,
   } = useClass();
 
-  // Admin Active Tab: Chỉ đơn giản có 4 mục: Điểm, Nhận xét, Dặn dò & Thông báo, Hộp thư Ph & HS
+  // Admin Active Tab: Điểm, Nhận xét, Dặn dò & Thông báo, Nội dung học tập, Hộp thư Ph & HS
   const [activeAdminTab, setActiveAdminTab] = useState<
-    'grades' | 'comments' | 'announcements' | 'messages'
+    'grades' | 'comments' | 'announcements' | 'lessons' | 'messages'
   >('grades');
 
   // Search & Filters
@@ -380,6 +380,19 @@ export const TeacherView: React.FC = () => {
             </button>
 
             <button
+              id="admin-nav-lessons"
+              onClick={() => setActiveAdminTab('lessons')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+                activeAdminTab === 'lessons'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>4. Nội dung học tập</span>
+            </button>
+
+            <button
               id="admin-nav-messages"
               onClick={() => setActiveAdminTab('messages')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
@@ -389,7 +402,7 @@ export const TeacherView: React.FC = () => {
               }`}
             >
               <MessageSquare className="w-4 h-4" />
-              <span>4. Hộp thư Ph & HS ({students.reduce((acc, s) => acc + s.parentMessages.length, 0)})</span>
+              <span>5. Hộp thư Ph & HS ({students.reduce((acc, s) => acc + s.parentMessages.length, 0)})</span>
             </button>
           </div>
 
@@ -833,7 +846,16 @@ export const TeacherView: React.FC = () => {
       )}
 
       {/* ======================================================== */}
-      {/* 4. TAB: HỘP THƯ PH & HS                                  */}
+      {/* 4. TAB: NỘI DUNG HỌC TẬP (ĐỒNG BỘ ONLINE FIRESTORE)      */}
+      {/* ======================================================== */}
+      {activeAdminTab === 'lessons' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+          <LiteratureLessonManager />
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* 5. TAB: HỘP THƯ PH & HS                                  */}
       {/* ======================================================== */}
       {activeAdminTab === 'messages' && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">

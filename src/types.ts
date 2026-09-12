@@ -9,13 +9,16 @@ export interface WeekInfo {
 
 export interface ClassInfo {
   name: string;
+  className?: string;
   school: string;
   homeroomTeacher: string;
   teacherTitle: string;
   teacherRole: string;
+  roleDescription?: string;
   academicYear: string;
   totalStudents: number;
   currentWeek: number;
+  scheduleNotes?: string;
 }
 
 export interface WeeklyEvaluation {

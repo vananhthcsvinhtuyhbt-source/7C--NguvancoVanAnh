@@ -12,9 +12,13 @@ import {
   BookOpen,
   User,
   Lock,
+  BookmarkCheck,
+  FileText,
+  School,
+  Sparkles,
 } from 'lucide-react';
 
-type TabType = 'grades' | 'comments' | 'announcements' | 'messages';
+type TabType = 'grades' | 'comments' | 'announcements' | 'lessons' | 'messages';
 
 export const ParentView: React.FC = () => {
   const {
@@ -23,6 +27,7 @@ export const ParentView: React.FC = () => {
     selectedWeek,
     setSelectedWeek,
     announcements,
+    lessonContents,
     addParentMessage,
     classInfo,
     gradeColumnNames,
@@ -111,13 +116,14 @@ export const ParentView: React.FC = () => {
 
           </div>
 
-          {/* 4 Navigation Tabs: Điểm, Nhận xét, Dặn dò & Thông báo, Hộp thư Ph & HS */}
+          {/* Navigation Tabs: Điểm, Nhận xét, Dặn dò & Thông báo, Nội dung học tập & Lịch học, Hộp thư Ph & HS */}
           <div className="flex items-center gap-1 sm:gap-2 mt-5 overflow-x-auto no-scrollbar pt-1 border-t border-slate-100">
             {[
               { id: 'grades', label: '1. Điểm', icon: GraduationCap },
               { id: 'comments', label: '2. Nhận xét', icon: MessageSquareQuote },
               { id: 'announcements', label: '3. Dặn dò & Thông báo', icon: Bell, badge: announcements.length > 0 ? announcements.length : undefined },
-              { id: 'messages', label: '4. Hộp thư Ph & HS', icon: MessageSquare, badge: currentStudent.parentMessages.length > 0 ? currentStudent.parentMessages.length : undefined },
+              { id: 'lessons', label: '4. Nội dung học tập & Lịch học', icon: BookOpen, badge: lessonContents.length > 0 ? lessonContents.length : undefined },
+              { id: 'messages', label: '5. Hộp thư Ph & HS', icon: MessageSquare, badge: currentStudent.parentMessages.length > 0 ? currentStudent.parentMessages.length : undefined },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -134,6 +140,8 @@ export const ParentView: React.FC = () => {
                         ? 'bg-indigo-600 text-white shadow-xs'
                         : tab.id === 'announcements'
                         ? 'bg-amber-600 text-white shadow-xs'
+                        : tab.id === 'lessons'
+                        ? 'bg-blue-600 text-white shadow-xs'
                         : 'bg-purple-600 text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                   }`}
@@ -730,7 +738,183 @@ export const ParentView: React.FC = () => {
         )}
 
         {/* ======================================================== */}
-        {/* 4. MỤC: HỘP THƯ PH & HS (TRAO ĐỔI 2 CHIỀU VỚI CÔ VÂN ANH) */}
+        {/* 4. MỤC: NỘI DUNG HỌC TẬP & LỊCH HỌC (ĐỒNG BỘ FIRESTORE)   */}
+        {/* ======================================================== */}
+        {activeTab === 'lessons' && (
+          <div className="space-y-6 animate-in fade-in duration-150">
+            {/* Thẻ Lịch học & Thời khóa biểu trực tuyến */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-900">
+                      Lịch học & Thời khóa biểu môn Ngữ Văn
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {classInfo.school || 'Trường THCS Tân Khai'} • {classInfo.className || 'Lớp 7C'} • {classInfo.academicYear || 'Năm học 2026 - 2027'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto bg-blue-50 px-3.5 py-1.5 rounded-xl border border-blue-200">
+                  <span className="text-xs font-bold text-blue-800">Tuần hiện tại: Tuần {classInfo.currentWeek || 4}</span>
+                </div>
+              </div>
+
+              <div className="mt-5 p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5">
+                    <School className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Thời khóa biểu & Ghi chú phòng học:
+                    </h4>
+                    <p className="text-sm font-semibold text-slate-800 mt-0.5 whitespace-pre-line">
+                      {classInfo.scheduleNotes || 'Thứ 2 (tiết 1-2), Thứ 4 (tiết 3), Thứ 6 (tiết 2) - Phòng 302'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-xs text-slate-400 shrink-0">
+                  Giáo viên: <strong>{classInfo.homeroomTeacher || 'Cô Vân Anh'}</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Thẻ Nội dung bài học và bài tập Ngữ Văn theo tuần */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      Nội dung học tập & Bài tập về nhà
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Chương trình bài học môn Ngữ Văn 7 được cô giáo cập nhật trực tuyến
+                    </p>
+                  </div>
+                </div>
+
+                {/* Chọn tuần để lọc bài học */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar self-start sm:self-auto">
+                  {weeks.map((w) => (
+                    <button
+                      key={w.week}
+                      onClick={() => setSelectedWeek(w.week)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        selectedWeek === w.week
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Tuần {w.week}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Danh sách bài học của tuần đã chọn hoặc tất cả */}
+              {(() => {
+                const weekLessons = lessonContents.filter((l) => l.week === selectedWeek);
+                const displayLessons = weekLessons.length > 0 ? weekLessons : lessonContents;
+
+                if (displayLessons.length === 0) {
+                  return (
+                    <div className="py-16 text-center text-slate-400">
+                      <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3 text-2xl shadow-xs">
+                        📖
+                      </div>
+                      <h4 className="text-base font-bold text-slate-800">Chưa có nội dung bài học nào</h4>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-md mx-auto">
+                        Khi Cô Vân Anh đăng nội dung bài học hoặc bài tập môn Ngữ Văn trên ứng dụng, phụ huynh và học sinh sẽ xem được ngay tại đây.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-5 mt-5">
+                    {displayLessons.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-5 sm:p-6 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-4"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-blue-100 text-blue-800">
+                              Tuần {item.week}
+                            </span>
+                            <span className="text-xs font-semibold text-slate-500">
+                              {item.topic}
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-400">
+                            Cập nhật: {item.updatedDate || 'Mới nhất'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h4 className="text-base sm:text-lg font-bold text-slate-900">
+                            {item.title}
+                          </h4>
+                        </div>
+
+                        {/* Trọng tâm kiến thức */}
+                        <div className="bg-white p-4 rounded-xl border border-slate-200/80">
+                          <h5 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 uppercase tracking-wider mb-1.5">
+                            <BookmarkCheck className="w-4 h-4 text-indigo-600" />
+                            Trọng tâm kiến thức bài học:
+                          </h5>
+                          <p className="text-xs sm:text-sm text-slate-700 whitespace-pre-line leading-relaxed">
+                            {item.keyKnowledge}
+                          </p>
+                        </div>
+
+                        {/* Bài tập & Hướng dẫn về nhà */}
+                        <div className="bg-amber-50/70 p-4 rounded-xl border border-amber-200/80">
+                          <h5 className="text-xs font-bold text-amber-900 flex items-center gap-1.5 uppercase tracking-wider mb-1.5">
+                            <FileText className="w-4 h-4 text-amber-600" />
+                            Nhiệm vụ học tập & Bài tập về nhà:
+                          </h5>
+                          <p className="text-xs sm:text-sm text-amber-950 whitespace-pre-line leading-relaxed">
+                            {item.homework}
+                          </p>
+                        </div>
+
+                        {/* Đoạn văn mẫu nếu có */}
+                        {item.sampleExcerpt && (
+                          <div className="bg-purple-50/60 p-4 rounded-xl border border-purple-200/80">
+                            <h5 className="text-xs font-bold text-purple-900 flex items-center gap-1.5 uppercase tracking-wider mb-1.5">
+                              <Sparkles className="w-4 h-4 text-purple-600" />
+                              Đoạn văn tham khảo & Gợi ý mở rộng:
+                            </h5>
+                            <p className="text-xs sm:text-sm text-purple-950 italic whitespace-pre-line leading-relaxed">
+                              "{item.sampleExcerpt}"
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="pt-2 flex items-center justify-between text-xs text-slate-500">
+                          <span>Giáo viên biên soạn: <strong>{item.author || 'Cô Vân Anh'}</strong></span>
+                          <span className="text-[11px] font-semibold text-blue-700">✓ Đồng bộ trực tuyến</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* 5. MỤC: HỘP THƯ PH & HS (TRAO ĐỔI 2 CHIỀU VỚI CÔ VÂN ANH) */}
         {/* ======================================================== */}
         {activeTab === 'messages' && (
           <div className="space-y-6 animate-in fade-in duration-150">

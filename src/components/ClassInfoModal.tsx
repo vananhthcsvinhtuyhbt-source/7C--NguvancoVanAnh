@@ -23,14 +23,18 @@ export const ClassInfoModal: React.FC<ClassInfoModalProps> = ({
   );
   const [academicYear, setAcademicYear] = useState(classInfo.academicYear || 'Năm học 2026 - 2027');
   const [totalStudents, setTotalStudents] = useState<number>(classInfo.totalStudents || 38);
+  const [scheduleNotes, setScheduleNotes] = useState(
+    classInfo.scheduleNotes || 'Thứ 2 (tiết 1-2), Thứ 4 (tiết 3), Thứ 6 (tiết 2) - Phòng 302'
+  );
 
   useEffect(() => {
-    setClassName(classInfo.className || 'Lớp 7C');
+    setClassName(classInfo.className || classInfo.name || 'Lớp 7C');
     setSchool(classInfo.school || 'Trường THCS Tân Khai');
     setHomeroomTeacher(classInfo.homeroomTeacher || 'Cô Vân Anh');
-    setRoleDescription(classInfo.roleDescription || 'Giáo viên môn Ngữ Văn');
+    setRoleDescription(classInfo.roleDescription || classInfo.teacherTitle || 'Giáo viên môn Ngữ Văn');
     setAcademicYear(classInfo.academicYear || 'Năm học 2026 - 2027');
     setTotalStudents(classInfo.totalStudents || 38);
+    setScheduleNotes(classInfo.scheduleNotes || 'Thứ 2 (tiết 1-2), Thứ 4 (tiết 3), Thứ 6 (tiết 2) - Phòng 302');
   }, [classInfo]);
 
   if (!isOpen) return null;
@@ -38,12 +42,16 @@ export const ClassInfoModal: React.FC<ClassInfoModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateClassInfo({
+      name: className.trim() || 'Lớp 7C',
       className: className.trim() || 'Lớp 7C',
       school: school.trim() || 'Trường THCS Tân Khai',
       homeroomTeacher: homeroomTeacher.trim() || 'Cô Vân Anh',
+      teacherTitle: roleDescription.trim() || 'Giáo viên môn Ngữ Văn',
+      teacherRole: roleDescription.trim() || 'Giáo viên môn Ngữ Văn',
       roleDescription: roleDescription.trim() || 'Giáo viên môn Ngữ Văn',
       academicYear: academicYear.trim() || 'Năm học 2026 - 2027',
       totalStudents: totalStudents || 38,
+      scheduleNotes: scheduleNotes.trim(),
     });
     onClose();
   };
@@ -154,6 +162,22 @@ export const ClassInfoModal: React.FC<ClassInfoModalProps> = ({
               onChange={(e) => setTotalStudents(Number(e.target.value))}
               className="w-32 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-center focus:bg-white focus:outline-hidden focus:border-indigo-600"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Lịch học / Thời khóa biểu môn Ngữ Văn & Lớp 7C:
+            </label>
+            <input
+              type="text"
+              value={scheduleNotes}
+              onChange={(e) => setScheduleNotes(e.target.value)}
+              placeholder="vd: Thứ 2 (tiết 1-2), Thứ 4 (tiết 3), Thứ 6 (tiết 2) - Phòng 302"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden focus:border-indigo-600"
+            />
+            <span className="text-[11px] text-slate-500 mt-1 block">
+              Thông tin lịch học sẽ được lưu trên Cloud Firestore để phụ huynh các máy đều thấy ngay.
+            </span>
           </div>
 
           {/* Action buttons */}

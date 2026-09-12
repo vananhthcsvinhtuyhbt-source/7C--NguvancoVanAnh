@@ -32,6 +32,21 @@ import {
   saveStudentToFirestore,
   seedInitialStudentsToFirestore,
 } from '../services/studentsFirestoreService';
+import {
+  subscribeToFirestoreAppConfig,
+  saveClassInfoToFirestore,
+  saveWeeksToFirestore,
+  saveGradeColumnNamesToFirestore,
+  saveFullAppConfigToFirestore,
+  seedInitialAppConfigToFirestore,
+  DEFAULT_GRADE_COLUMNS,
+} from '../services/appConfigFirestoreService';
+import {
+  subscribeToFirestoreLessons,
+  saveLessonToFirestore,
+  deleteLessonFromFirestore,
+  seedInitialLessonsToFirestore,
+} from '../services/lessonsFirestoreService';
 
 interface AddWeekParams {
   week: number;
@@ -90,44 +105,25 @@ interface ClassContextType {
 
 const ClassContext = createContext<ClassContextType | undefined>(undefined);
 
-const STORAGE_LESSONS_KEY = 'so_lien_lac_7c_lessons_v1';
-const STORAGE_WEEKS_KEY = 'so_lien_lac_7c_weeks_v1';
-const STORAGE_CLASS_INFO_KEY = 'so_lien_lac_7c_class_info_v1';
+// Device-local navigation state only
 const STORAGE_STUDENT_ID_KEY = 'so_lien_lac_7c_current_id_v1';
 const STORAGE_ROLE_KEY = 'so_lien_lac_7c_role_v1';
 const STORAGE_TEACHER_AUTH_KEY = 'so_lien_lac_7c_teacher_auth_v1';
-const STORAGE_GRADE_COLUMNS_KEY = 'so_lien_lac_7c_grade_columns_v1';
 
 export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [gradeColumnNames, setGradeColumnNames] = useState<GradeColumnNames>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_GRADE_COLUMNS_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Failed to load grade column names:', e);
-    }
-    // "Tên điểm để trống" -> mặc định để trống cho cô giáo tự đặt hoặc để trống
-    return {
-      oral: '',
-      test15m1: '',
-      test15m2: '',
-      periodTest: '',
-      midterm: '',
-      finalExam: '',
-    };
-  });
+  // Cấu hình tên cột điểm tùy chỉnh (đồng bộ qua Cloud Firestore)
+  const [gradeColumnNames, setGradeColumnNames] = useState<GradeColumnNames>(DEFAULT_GRADE_COLUMNS);
 
   const updateGradeColumnNames = (names: Partial<GradeColumnNames>) => {
     setGradeColumnNames((prev) => {
       const updated = { ...prev, ...names };
-      try {
-        localStorage.setItem(STORAGE_GRADE_COLUMNS_KEY, JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to save grade column names:', e);
-      }
+      saveGradeColumnNamesToFirestore(updated).catch((e) =>
+        console.warn('Lỗi lưu tên cột điểm lên Firestore:', e)
+      );
       return updated;
     });
   };
+
   const [isTeacherAuthenticated, setIsTeacherAuthenticated] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem(STORAGE_TEACHER_AUTH_KEY) === 'true';
@@ -149,34 +145,13 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return savedRole;
   });
 
-  const [classInfo, setClassInfo] = useState<ClassInfo>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_CLASS_INFO_KEY);
-      if (saved) {
-        const parsed: ClassInfo = JSON.parse(saved);
-        if (!parsed.academicYear || parsed.academicYear.includes('2024')) {
-          parsed.academicYear = 'Năm học 2026 - 2027';
-        }
-        return parsed;
-      }
-    } catch (e) {
-      console.error('Failed to load class info:', e);
-    }
-    return CLASS_INFO;
-  });
+  // Thông tin lớp học (đồng bộ qua Cloud Firestore)
+  const [classInfo, setClassInfo] = useState<ClassInfo>(CLASS_INFO);
 
-  const [weeks, setWeeks] = useState<WeekInfo[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_WEEKS_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Failed to load weeks:', e);
-    }
-    return INITIAL_WEEKS;
-  });
+  // Danh sách các tuần học (đồng bộ qua Cloud Firestore)
+  const [weeks, setWeeks] = useState<WeekInfo[]>(INITIAL_WEEKS);
 
-  // Dữ liệu Học sinh, Điểm số & Nhận xét được lưu trữ và đồng bộ thời gian thực qua Cloud Firestore.
-  // Tuyệt đối KHÔNG dùng localStorage cho Điểm và Nhận xét (đồng bộ tức thì giữa máy cô giáo và máy phụ huynh).
+  // Dữ liệu Học sinh, Điểm số, Nhận xét, Hộp thư, Huy hiệu, Mục tiêu (đồng bộ qua Cloud Firestore)
   const [students, setStudents] = useState<Student[]>(INITIAL_STUDENTS);
   const studentsRef = useRef<Student[]>(INITIAL_STUDENTS);
 
@@ -187,39 +162,16 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Đồng bộ học sinh, điểm số & nhận xét từ Cloud Firestore
   useEffect(() => {
-    // 1. Thu thập dữ liệu cũ nếu cô giáo từng nhập trên máy này trước khi có Firestore
-    let legacyLocalStudents: Student[] | null = null;
-    try {
-      const saved = localStorage.getItem('so_lien_lac_7c_students_v4');
-      if (saved) {
-        legacyLocalStudents = JSON.parse(saved);
-      }
-    } catch (e) {
-      console.warn('Không thể đọc dữ liệu cũ:', e);
-    }
-
-    // 2. Lắng nghe thay đổi thời gian thực từ Cloud Firestore
     const unsubscribe = subscribeToFirestoreStudents(
       (remoteStudents) => {
         studentsRef.current = remoteStudents;
         setStudents(remoteStudents);
-        try {
-          localStorage.removeItem('so_lien_lac_7c_students_v4');
-        } catch {
-          // ignore
-        }
       },
       () => {
         // Bộ sưu tập trên Firestore đang trống -> Khởi tạo dữ liệu lớp 7C lên Cloud
-        const toSeed = legacyLocalStudents && legacyLocalStudents.length > 0 ? legacyLocalStudents : INITIAL_STUDENTS;
-        studentsRef.current = toSeed;
-        seedInitialStudentsToFirestore(toSeed);
-        setStudents(toSeed);
-        try {
-          localStorage.removeItem('so_lien_lac_7c_students_v4');
-        } catch {
-          // ignore
-        }
+        studentsRef.current = INITIAL_STUDENTS;
+        seedInitialStudentsToFirestore(INITIAL_STUDENTS);
+        setStudents(INITIAL_STUDENTS);
       },
       (error) => {
         console.warn('Lỗi kết nối Firestore Students:', error);
@@ -233,11 +185,10 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  // Dữ liệu Thông báo & Dặn dò được lưu trữ và đồng bộ thời gian thực qua Cloud Firestore (dùng chung cho mọi thiết bị)
+  // Dữ liệu Thông báo & Dặn dò (đồng bộ qua Cloud Firestore)
   const [announcements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
 
   useEffect(() => {
-    // Lắng nghe Cloud Firestore theo thời gian thực
     const unsubscribe = subscribeToFirestoreAnnouncements((items) => {
       setAnnouncements(items);
     });
@@ -248,15 +199,53 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  const [lessonContents, setLessonContents] = useState<LiteratureLessonContent[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_LESSONS_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error('Failed to load saved lesson contents:', e);
-    }
-    return INITIAL_LESSON_CONTENTS;
-  });
+  // Dữ liệu Nội dung học tập & Bài tập môn Ngữ Văn (đồng bộ qua Cloud Firestore)
+  const [lessonContents, setLessonContents] = useState<LiteratureLessonContent[]>(INITIAL_LESSON_CONTENTS);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToFirestoreLessons(
+      (items) => {
+        setLessonContents(items);
+      },
+      () => {
+        seedInitialLessonsToFirestore(INITIAL_LESSON_CONTENTS);
+        setLessonContents(INITIAL_LESSON_CONTENTS);
+      },
+      (error) => {
+        console.warn('Lỗi kết nối Firestore Lessons:', error);
+      }
+    );
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
+
+  // Dữ liệu Cấu hình Lớp, Lịch học các tuần và Cột điểm (đồng bộ qua Cloud Firestore)
+  useEffect(() => {
+    const unsubscribe = subscribeToFirestoreAppConfig(
+      (config) => {
+        setClassInfo(config.classInfo);
+        setWeeks(config.weeks);
+        setGradeColumnNames(config.gradeColumnNames);
+      },
+      () => {
+        seedInitialAppConfigToFirestore();
+        setClassInfo(CLASS_INFO);
+        setWeeks(INITIAL_WEEKS);
+        setGradeColumnNames(DEFAULT_GRADE_COLUMNS);
+      },
+      (error) => {
+        console.warn('Lỗi kết nối Firestore App Config:', error);
+      }
+    );
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
 
   const [currentStudentId, setCurrentStudentIdState] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_STUDENT_ID_KEY);
@@ -266,30 +255,6 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedWeek, setSelectedWeek] = useState<number>(() => {
     return classInfo.currentWeek || 4;
   });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_LESSONS_KEY, JSON.stringify(lessonContents));
-    } catch (e) {
-      console.warn('Storage error:', e);
-    }
-  }, [lessonContents]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_WEEKS_KEY, JSON.stringify(weeks));
-    } catch (e) {
-      console.warn('Storage error:', e);
-    }
-  }, [weeks]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_CLASS_INFO_KEY, JSON.stringify(classInfo));
-    } catch (e) {
-      console.warn('Storage error:', e);
-    }
-  }, [classInfo]);
 
   const unlockTeacher = (password: string): boolean => {
     if (password.trim() === '20182022') {
@@ -333,7 +298,13 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const currentStudent = students.find((s) => s.id === currentStudentId) || students[0];
 
   const updateClassInfo = (data: Partial<ClassInfo>) => {
-    setClassInfo((prev) => ({ ...prev, ...data }));
+    setClassInfo((prev) => {
+      const updated = { ...prev, ...data };
+      saveClassInfoToFirestore(updated).catch((err) =>
+        console.warn('Lỗi lưu thông tin lớp lên Firestore:', err)
+      );
+      return updated;
+    });
   };
 
   const updateStudentInfo = (studentId: string, data: Partial<Student>) => {
@@ -389,12 +360,18 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ...w,
         isCurrent: w.week === newWeekNum,
       }));
-      setClassInfo((prev) => ({ ...prev, currentWeek: newWeekNum }));
+      const newClassInfo = { ...classInfo, currentWeek: newWeekNum };
+      setClassInfo(newClassInfo);
+      saveClassInfoToFirestore(newClassInfo).catch(console.warn);
     }
 
     setWeeks(updatedWeeks);
+    saveWeeksToFirestore(updatedWeeks).catch((err) =>
+      console.warn('Lỗi lưu tuần học lên Firestore:', err)
+    );
 
-    // Initialize or update evaluation for all students for this week
+    // Chuẩn bị cập nhật nhận xét tuần mới cho học sinh
+    const evalUpdates: { studentId: string; week: number; evaluation: WeeklyEvaluation }[] = [];
     setStudents((prev) =>
       prev.map((student) => {
         // If already has this week, keep it
@@ -465,6 +442,12 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
         }
 
+        evalUpdates.push({
+          studentId: student.id,
+          week: newWeekNum,
+          evaluation: initialEval,
+        });
+
         return {
           ...student,
           weeklyEvaluations: {
@@ -474,6 +457,12 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
       })
     );
+
+    if (evalUpdates.length > 0) {
+      batchUpdateStudentsEvaluationsInFirestore(evalUpdates).catch((err) =>
+        console.warn('Lỗi lưu nhận xét tuần mới lên Firestore:', err)
+      );
+    }
 
     // If lesson content for this week doesn't exist, create a draft template
     const existingLesson = lessonContents.find((l) => l.week === newWeekNum);
@@ -491,6 +480,9 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         author: 'Cô Vân Anh - Giáo viên môn Ngữ Văn',
       };
       setLessonContents((prev) => [newLesson, ...prev]);
+      saveLessonToFirestore(newLesson).catch((err) =>
+        console.warn('Lỗi lưu nội dung học tập lên Firestore:', err)
+      );
     }
 
     // Switch view to this new week
@@ -498,40 +490,55 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateWeekInfo = (weekNum: number, data: Partial<WeekInfo>) => {
-    setWeeks((prev) =>
-      prev.map((w) => {
-        if (w.week !== weekNum) {
-          if (data.isCurrent) return { ...w, isCurrent: false };
-          return w;
-        }
-        return { ...w, ...data };
-      })
+    const updatedWeeks = weeks.map((w) => {
+      if (w.week !== weekNum) {
+        if (data.isCurrent) return { ...w, isCurrent: false };
+        return w;
+      }
+      return { ...w, ...data };
+    });
+
+    setWeeks(updatedWeeks);
+    saveWeeksToFirestore(updatedWeeks).catch((err) =>
+      console.warn('Lỗi lưu tuần học lên Firestore:', err)
     );
 
     if (data.isCurrent) {
-      setClassInfo((prev) => ({ ...prev, currentWeek: weekNum }));
+      const updatedClassInfo = { ...classInfo, currentWeek: weekNum };
+      setClassInfo(updatedClassInfo);
+      saveClassInfoToFirestore(updatedClassInfo).catch(console.warn);
     }
 
     if (data.title) {
+      const evalUpdates: { studentId: string; week: number; evaluation: WeeklyEvaluation }[] = [];
       setStudents((prev) =>
         prev.map((s) => {
           const ev = s.weeklyEvaluations[weekNum];
           if (!ev) return s;
+          const newEv = { ...ev, title: data.title! };
+          evalUpdates.push({ studentId: s.id, week: weekNum, evaluation: newEv });
           return {
             ...s,
             weeklyEvaluations: {
               ...s.weeklyEvaluations,
-              [weekNum]: { ...ev, title: data.title! },
+              [weekNum]: newEv,
             },
           };
         })
       );
+      if (evalUpdates.length > 0) {
+        batchUpdateStudentsEvaluationsInFirestore(evalUpdates).catch(console.warn);
+      }
     }
   };
 
   const deleteWeek = (weekNum: number) => {
     if (weeks.length <= 1) return;
-    setWeeks((prev) => prev.filter((w) => w.week !== weekNum));
+    const remainingWeeks = weeks.filter((w) => w.week !== weekNum);
+    setWeeks(remainingWeeks);
+    saveWeeksToFirestore(remainingWeeks).catch((err) =>
+      console.warn('Lỗi lưu danh sách tuần lên Firestore:', err)
+    );
 
     setStudents((prev) =>
       prev.map((s) => {
@@ -542,8 +549,7 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
 
     if (selectedWeek === weekNum) {
-      const remaining = weeks.filter((w) => w.week !== weekNum);
-      setSelectedWeek(remaining[remaining.length - 1]?.week || 1);
+      setSelectedWeek(remainingWeeks[remainingWeeks.length - 1]?.week || 1);
     }
   };
 
@@ -1112,32 +1118,57 @@ export const ClassProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const item: LiteratureLessonContent = {
       ...content,
       id: `lit-${Date.now()}`,
+      updatedDate: new Date().toLocaleDateString('vi-VN'),
     };
     setLessonContents((prev) => [item, ...prev]);
+    saveLessonToFirestore(item).catch((err) =>
+      console.warn('Lỗi lưu nội dung học tập lên Firestore:', err)
+    );
   };
 
   const updateLessonContent = (id: string, content: Partial<LiteratureLessonContent>) => {
+    const existing = lessonContents.find((l) => l.id === id);
+    if (!existing) return;
+    const updated: LiteratureLessonContent = {
+      ...existing,
+      ...content,
+      updatedDate: new Date().toLocaleDateString('vi-VN'),
+    };
     setLessonContents((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, ...content, updatedDate: new Date().toLocaleDateString('vi-VN') }
-          : item
-      )
+      prev.map((item) => (item.id === id ? updated : item))
+    );
+    saveLessonToFirestore(updated).catch((err) =>
+      console.warn('Lỗi cập nhật nội dung học tập lên Firestore:', err)
     );
   };
 
   const deleteLessonContent = (id: string) => {
     setLessonContents((prev) => prev.filter((item) => item.id !== id));
+    deleteLessonFromFirestore(id).catch((err) =>
+      console.warn('Lỗi xóa nội dung học tập trên Firestore:', err)
+    );
   };
 
   const resetAllData = () => {
-    localStorage.removeItem(STORAGE_LESSONS_KEY);
     seedInitialStudentsToFirestore(INITIAL_STUDENTS).catch((err) =>
       console.warn('Lỗi đặt lại học sinh trên Firestore:', err)
+    );
+    seedInitialLessonsToFirestore(INITIAL_LESSON_CONTENTS).catch((err) =>
+      console.warn('Lỗi đặt lại bài học trên Firestore:', err)
+    );
+    saveFullAppConfigToFirestore({
+      classInfo: CLASS_INFO,
+      weeks: INITIAL_WEEKS,
+      gradeColumnNames: DEFAULT_GRADE_COLUMNS,
+    }).catch((err) =>
+      console.warn('Lỗi đặt lại cấu hình trên Firestore:', err)
     );
     setStudents(INITIAL_STUDENTS);
     setAnnouncements(INITIAL_ANNOUNCEMENTS);
     setLessonContents(INITIAL_LESSON_CONTENTS);
+    setClassInfo(CLASS_INFO);
+    setWeeks(INITIAL_WEEKS);
+    setGradeColumnNames(DEFAULT_GRADE_COLUMNS);
     setCurrentStudentId('7C09');
   };
 
